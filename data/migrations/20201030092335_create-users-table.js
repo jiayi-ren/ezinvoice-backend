@@ -1,7 +1,7 @@
 
 exports.up = function(knex) {
   return knex.schema
-    // .raw('CREATE EXTENSIOn IF NOT EXISTS "uuid-oosp"')
+    .raw('CREATE EXTENSION IF NOT EXISTS "uuid-oosp"')
     .createTable("users", function (table) {
         table.string("id").notNullable().unique().primary();
         table.string("name");

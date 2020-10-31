@@ -1,5 +1,5 @@
 const createError = require('http-errors');
-const Profiles = require('../user/userModel');
+const Users = require('../user/userModel');
 const checkJwt = require('../middleware/checkJwt');
 
 const makeUserObj = (payload) => {
@@ -19,7 +19,7 @@ const jwtVerifiedUser = async (req, res, next) => {
     try {
         const jwtPayload = req.user;
         const jwtUserObject = makeUserObj(jwtPayload);
-        const user = await Profiles.findOrCreateUser(jwtUserObject);
+        const user = await Users.findOrCreateUser(jwtUserObject);
         if (user) {
             req.user = user;
         } else {

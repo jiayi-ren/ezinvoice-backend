@@ -20,6 +20,7 @@ const swaggerUIOptions = {
 
 //###[  Routers ]###
 const indexRouter = require('./index/indexRouter');
+const userRouter = require('./user/userRouter');
 
 const app = express();
 
@@ -47,6 +48,7 @@ app.use(cookieParser());
 
 // application routes
 app.use('/', indexRouter);
+app.use('/user', userRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

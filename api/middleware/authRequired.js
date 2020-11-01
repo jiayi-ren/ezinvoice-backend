@@ -4,7 +4,6 @@ const checkJwt = require('../middleware/checkJwt');
 
 const makeUserObj = (payload) => {
     return {
-        id: payload.sub,
         name: payload.name,
         email: payload.email,
         picture: payload.picture,

@@ -7,6 +7,7 @@ const makeUserObj = (payload) => {
         name: payload.name,
         email: payload.email,
         picture: payload.picture,
+        sub: payload.sub,
     }
 }
 

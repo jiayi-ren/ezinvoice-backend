@@ -19,18 +19,13 @@ module.exports = {
       ],
       components: {
         securitySchemes: {
-        //   okta: {
-        //     type: 'http',
-        //     scheme: 'bearer',
-        //     bearerFormat: 'Okta idToken JWT',
-        //   },
         },
         responses: {
           UnauthorizedError: {
             description: 'Access token is missing or invalid',
           },
           BadRequest: {
-            description: 'Bad request. profile already exists',
+            description: 'Bad request',
           },
           NotFound: {
             description: 'Not Found',
@@ -48,6 +43,9 @@ module.exports = {
                 },
               },
             },
+          },
+          InternalServerError: {
+            description: 'Internal Server Error',
           },
         },
       },

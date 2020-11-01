@@ -3,8 +3,8 @@
 Swagger docs are created using [open api v3 notations](https://swagger.io/specification/).
 There are 2 libraries used to generate the swagger formatted docs:
 
-- [swagger-ui-express](https://github.com/scottie1984/swagger-ui-express)
-- [swagger-jsdoc](https://github.com/Surnet/swagger-jsdoc)
+-   [swagger-ui-express](https://github.com/scottie1984/swagger-ui-express)
+-   [swagger-jsdoc](https://github.com/Surnet/swagger-jsdoc)
 
 ## Swagger UI Express
 

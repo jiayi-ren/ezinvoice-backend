@@ -69,22 +69,19 @@ const Users = require('./userModel');
  */
 
 router.get('/', authRequired, (req, res) => {
-  
-  const authUserId = req.user.id;
+    const authUserId = req.user.id;
 
-  Users.findById(authUserId)
-    .then((user) => {
-      if (user) {
-        return res.status(200).json(user);
-      }
-        res.status(404)
-          .json({ error: "User not found"})
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500)
-        .json({ error: err.message });
-    });
+    Users.findById(authUserId)
+        .then(user => {
+            if (user) {
+                return res.status(200).json(user);
+            }
+            res.status(404).json({ error: 'User not found' });
+        })
+        .catch(err => {
+            console.log(err);
+            res.status(500).json({ error: err.message });
+        });
 });
 
 /**
@@ -126,28 +123,23 @@ router.get('/', authRequired, (req, res) => {
  */
 
 router.get('/:id', authRequired, (req, res) => {
-  
-  const id = parseInt(req.params.id);
-  const authUserId = req.user.id;
+    const id = parseInt(req.params.id);
+    const authUserId = req.user.id;
 
-  if (authUserId === id) {
-    return Users.findById(id)
-    .then((user) => {
-      if (user) {
-        return res.status(200)
-                .json(user);
-      }
-        res.status(404)
-          .json({ error: "User not found"})
-    })
-    .catch((err) => {
-      console.log(err);
-      res.status(500)
-        .json({ error: err.message });
-    });
-  }
-    res.status(401)
-      .json({ error: "Not authorized to complete this request"})
+    if (authUserId === id) {
+        return Users.findById(id)
+            .then(user => {
+                if (user) {
+                    return res.status(200).json(user);
+                }
+                res.status(404).json({ error: 'User not found' });
+            })
+            .catch(err => {
+                console.log(err);
+                res.status(500).json({ error: err.message });
+            });
+    }
+    res.status(401).json({ error: 'Not authorized to complete this request' });
 });
 
 /**
@@ -185,13 +177,13 @@ router.get('/:id', authRequired, (req, res) => {
  *        name: John Doe
  *        email: johndoe@johndoe.com
  *        picture: https://john_doe.png
- * 
+ *
  * /users/{id}:
  *  put:
  *    description: update a user
  *    summary: Returns a single user
  *    security:
- *      - auth0: ['bearer token']  
+ *      - auth0: ['bearer token']
  *    tags:
  *      - users
  *    parameters:
@@ -216,42 +208,41 @@ router.get('/:id', authRequired, (req, res) => {
  */
 
 router.put('/:id', authRequired, (req, res) => {
+    const user = req.body;
+    const id = parseInt(req.params.id);
+    const authUserId = req.user.id;
 
-  const user = req.body;
-  const id = parseInt(req.params.id);
-  const authUserId = req.user.id;
-
-  if (authUserId === id) {
-    if (user) {
-      return Users.findById(id)
-      .then(
-        Users.update(id, user)
-          .then((updated) => {
-            res.status(200)
-              .json({ message: `Successfully updated user ${id} `, user: updated[0] });
-          })
-          .catch((err) => {
-            res.status(500)
-              .json({
-                message: `Failed to update user ${id}`,
-                error: err.message,
-              });
-          })
-      )
-      .catch((err) => {
-        res.status(404)
-          .json({
-            message: `User ${id} not found`,
-            error: err.message,
-          });
-      });
+    if (authUserId === id) {
+        if (user) {
+            return Users.findById(id)
+                .then(
+                    Users.update(id, user)
+                        .then(updated => {
+                            res.status(200).json({
+                                message: `Successfully updated user ${id} `,
+                                user: updated[0],
+                            });
+                        })
+                        .catch(err => {
+                            res.status(500).json({
+                                message: `Failed to update user ${id}`,
+                                error: err.message,
+                            });
+                        }),
+                )
+                .catch(err => {
+                    res.status(404).json({
+                        message: `User ${id} not found`,
+                        error: err.message,
+                    });
+                });
+        }
+        return res
+            .status(400)
+            .json({ error: 'User body missing or incomplete ' });
     }
-    return res.status(400)
-            .json({ error: "User body missing or incomplete "})
-  }
-  res.status(401)
-    .json({ error: "Not authorized to complete this request"})
-})
+    res.status(401).json({ error: 'Not authorized to complete this request' });
+});
 
 /**
  * @swagger
@@ -287,35 +278,33 @@ router.put('/:id', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 router.delete('/:id', authRequired, (req, res) => {
+    const id = parseInt(req.params.id);
+    const authUserId = req.user.id;
 
-  const id = parseInt(req.params.id);
-  const authUserId = req.user.id;
- 
-  if (authUserId === id) {
-    return Users.findById(id)
-    .then((user) => {
-      if (user) {
-        Users.remove(user.id)
-        .then(() => { 
-          res.status(200)
-          .json({ message: `Successfully deleted user '${id}'` });
-        })
-        .catch((err) => {
-          console.log(err)
-          res.status(500).json({ error: err.message })
-        })
-      } else {
-        res.status(404).json({ error: "Sser not found" });
-      }
-
-    })
-    .catch(() => {
-      console.log(err)
-      res.status(500).json({ error: err.message })
-    })
-  }
-  res.status(401).json({ error: "Not authorized to complete this request"})
-
+    if (authUserId === id) {
+        return Users.findById(id)
+            .then(user => {
+                if (user) {
+                    Users.remove(user.id)
+                        .then(() => {
+                            res.status(200).json({
+                                message: `Successfully deleted user '${id}'`,
+                            });
+                        })
+                        .catch(err => {
+                            console.log(err);
+                            res.status(500).json({ error: err.message });
+                        });
+                } else {
+                    res.status(404).json({ error: 'Sser not found' });
+                }
+            })
+            .catch(() => {
+                console.log(err);
+                res.status(500).json({ error: err.message });
+            });
+    }
+    res.status(401).json({ error: 'Not authorized to complete this request' });
 });
 
 module.exports = router;

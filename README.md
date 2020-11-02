@@ -28,6 +28,17 @@ To get the server running locally:
 | PUT    | `/users/:userId` | owners         | Return an updated single user       |
 | DELETE | `/users/:userId` | owners         | Delete a single user                |
 
+<br>
+
+#### User Settings Routes
+
+| Method | Endpoint     | Access Control | Description                                          |
+| ------ | ------------ | -------------- | ---------------------------------------------------- |
+| POST   | `/settings/` | authentication | Create and return user setting for the current user. |
+| GET    | `/settings/` | owners         | Return info for a single user setting                |
+| PUT    | `/settings/` | owners         | Return an updated single user setting                |
+| DELETE | `/settings/` | owners         | Delete a single user setting                         |
+
 # Data Model
 
 #### USERS
@@ -36,11 +47,30 @@ To get the server running locally:
 
 ```
 {
-  id: INTGER
+  id: INTEGER
   name: STRING
   email: STRING
   picture: STRING
   sub: STRING
+}
+```
+
+---
+
+#### USER SETTINGS
+
+---
+
+```
+{
+  id: INTEGER
+  name: STRING
+  email: STRING
+  street: STRING
+  cityState: STRING
+  zip: STRING
+  phone: STRING
+  userId: INTEGER
 }
 ```
 

@@ -181,7 +181,7 @@ router.get('/:id', authRequired, (req, res) => {
  * /users/{id}:
  *  put:
  *    description: update a user
- *    summary: Returns a single user
+ *    summary: Updates a single user
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
@@ -193,7 +193,7 @@ router.get('/:id', authRequired, (req, res) => {
  *        schema:
  *            $ref: '#/components/parameters/User'
  *    responses:
- *      201:
+ *      200:
  *        description: 'Successfully updated user'
  *        content:
  *          application/json:
@@ -220,7 +220,7 @@ router.put('/:id', authRequired, (req, res) => {
                         .then(updated => {
                             res.status(200).json({
                                 message: `Successfully updated user ${id} `,
-                                user: updated[0],
+                                user: updated,
                             });
                         })
                         .catch(err => {
@@ -296,7 +296,7 @@ router.delete('/:id', authRequired, (req, res) => {
                             res.status(500).json({ error: err.message });
                         });
                 } else {
-                    res.status(404).json({ error: 'Sser not found' });
+                    res.status(404).json({ error: 'User not found' });
                 }
             })
             .catch(() => {

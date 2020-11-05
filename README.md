@@ -21,12 +21,12 @@ To get the server running locally:
 
 #### User Routes
 
-| Method | Endpoint         | Access Control | Description                         |
-| ------ | ---------------- | -------------- | ----------------------------------- |
-| GET    | `/users/`        | authentication | Return info for the logged in user. |
-| GET    | `/users/:userId` | owners         | Return info for a single user.      |
-| PUT    | `/users/:userId` | owners         | Return an updated single user       |
-| DELETE | `/users/:userId` | owners         | Delete a single user                |
+| Method | Endpoint          | Access Control | Description                         |
+| ------ | ----------------- | -------------- | ----------------------------------- |
+| GET    | `/users/`         | authentication | Return info for the logged in user. |
+| GET    | `/users/:user_id` | owners         | Return info for a single user.      |
+| PUT    | `/users/:user_id` | owners         | Return an updated single user       |
+| DELETE | `/users/:user_id` | owners         | Delete a single user                |
 
 <br>
 
@@ -38,6 +38,17 @@ To get the server running locally:
 | GET    | `/settings/` | owners         | Return info for a single user setting                |
 | PUT    | `/settings/` | owners         | Return an updated single user setting                |
 | DELETE | `/settings/` | owners         | Delete a single user setting                         |
+
+<br>
+
+#### Clients Routes
+
+| Method | Endpoint              | Access Control | Description                                      |
+| ------ | --------------------- | -------------- | ------------------------------------------------ |
+| POST   | `/clients/`           | authentication | Create and return a client for the current user. |
+| GET    | `/clients/`           | owners         | Return info for an array of clients              |
+| PUT    | `/clients/:client_id` | owners         | Return an updated client                         |
+| DELETE | `/clients/:client_id` | owners         | Delete a single client                           |
 
 # Data Model
 
@@ -70,7 +81,26 @@ To get the server running locally:
   cityState: STRING
   zip: STRING
   phone: STRING
-  userId: INTEGER
+  user_id: INTEGER
+}
+```
+
+---
+
+#### CLIENTS
+
+---
+
+```
+{
+  id: INTEGER
+  name: STRING
+  email: STRING
+  street: STRING
+  cityState: STRING
+  zip: STRING
+  phone: STRING
+  user_id: INTEGER
 }
 ```
 

@@ -12,7 +12,9 @@ exports.up = async function (knex) {
             .unsigned()
             .notNullable()
             .references('id')
-            .inTable('users');
+            .inTable('users')
+            .onUpdate('CASCADE')
+            .onDelete('CASCADE');
         table.timestamps(true, true);
     });
 };

@@ -1,5 +1,4 @@
 const express = require('express');
-const { use } = require('../app');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const UserSettings = require('./userSettingsModel');
@@ -24,7 +23,7 @@ const UserSettings = require('./userSettingsModel');
  *              type: string
  *              description: The street name of a address
  *              example: 123 invoice street
- *          cityState:
+ *          city_state:
  *              type: string
  *              description: The city and state of a address
  *              example: City, State
@@ -41,7 +40,7 @@ const UserSettings = require('./userSettingsModel');
  *          name: John Doe LLC
  *          email: johndoe@johndoellc.com
  *          street: 123 invoice street
- *          cityState: City, State
+ *          city_state: City, State
  *          zip: '01234'
  *          phone: 123-234-3456
  *
@@ -66,7 +65,7 @@ const UserSettings = require('./userSettingsModel');
  *          type: string
  *          description: The street name of a address
  *          example: 123 invoice street
- *        cityState:
+ *        city_state:
  *          type: string
  *          description: The city and state of a address
  *          example: City, State
@@ -79,7 +78,7 @@ const UserSettings = require('./userSettingsModel');
  *          format: phone
  *          description: The phone number of a user's business
  *          example: 123-234-3456
- *        userId:
+ *        user_id:
  *          type: integer
  *          description: The user of the setting belongs to
  *          example: 25
@@ -88,10 +87,10 @@ const UserSettings = require('./userSettingsModel');
  *        name: John Doe LLC
  *        email: johndoe@johndoellc.com
  *        street: 123 invoice street
- *        cityState: City, State
+ *        city_state: City, State
  *        zip: '01234'
  *        phone: 123-234-3456
- *        userId: 25
+ *        user_id: 25
  */
 
 /**
@@ -104,7 +103,7 @@ const UserSettings = require('./userSettingsModel');
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - userSettings
+ *      - user settings
  *    parameters:
  *      - in: body
  *        name: User setting object
@@ -129,7 +128,7 @@ const UserSettings = require('./userSettingsModel');
 router.post('/', authRequired, (req, res) => {
     let userSetting = req.body;
     const authUserId = req.user.id;
-    userSetting.userId = authUserId;
+    userSetting.user_id = authUserId;
 
     UserSettings.findByUserId(authUserId)
         .then(userSetting => {
@@ -141,13 +140,10 @@ router.post('/', authRequired, (req, res) => {
             UserSettings.create(userSetting)
                 .then(userSetting => {
                     if (userSetting) {
-                        return res
-                            .status(200)
-                            .json({
-                                message:
-                                    'Successfully create the user settings',
-                                userSetting,
-                            });
+                        return res.status(200).json({
+                            message: 'Successfully create the user settings',
+                            userSetting,
+                        });
                     }
                     res.status(500).json({
                         error: 'Failed to create a new setting for the user',
@@ -174,7 +170,7 @@ router.post('/', authRequired, (req, res) => {
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - userSettings
+ *      - user settings
  *    responses:
  *      200:
  *        description: A user settings object
@@ -218,7 +214,7 @@ router.get('/', authRequired, (req, res) => {
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - userSettings
+ *      - user settings
  *    parameters:
  *      - in: body
  *        name: User Object
@@ -244,7 +240,7 @@ router.put('/', authRequired, (req, res) => {
     const userSettingReq = req.body;
     const authUserId = req.user.id;
 
-    if (authUserId === userSettingReq.userId) {
+    if (authUserId === userSettingReq.user_id) {
         if (userSettingReq) {
             return UserSettings.findByUserId(authUserId)
                 .then(userSetting => {
@@ -267,12 +263,10 @@ router.put('/', authRequired, (req, res) => {
                                     });
                                 });
                         }
-                        return res
-                            .status(400)
-                            .json({
-                                error:
-                                    'User setting id doest not match with record',
-                            });
+                        return res.status(400).json({
+                            error:
+                                'User setting id doest not match with record',
+                        });
                     }
                     res.status(404).json({
                         error: 'User setting not found for current user',
@@ -299,7 +293,7 @@ router.put('/', authRequired, (req, res) => {
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - userSettings
+ *      - user settings
  *    responses:
  *      200:
  *        description: 'Successfully deleted user settings'
@@ -310,13 +304,14 @@ router.put('/', authRequired, (req, res) => {
  *      5XX:
  *        $ref: '#/components/responses/InternalServerError'
  */
+
 router.delete('/', authRequired, (req, res) => {
     const authUserId = req.user.id;
 
     UserSettings.findByUserId(authUserId)
         .then(userSetting => {
             if (userSetting) {
-                if (userSetting.userId === authUserId) {
+                if (userSetting.user_id === authUserId) {
                     return UserSettings.remove(userSetting.id)
                         .then(() => {
                             res.status(200).json({

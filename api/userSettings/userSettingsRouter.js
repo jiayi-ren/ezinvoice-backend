@@ -126,9 +126,9 @@ const UserSettings = require('./userSettingsModel');
  */
 
 router.post('/', authRequired, (req, res) => {
-    let userSetting = req.body;
+    let userSettingReq = req.body;
     const authUserId = req.user.id;
-    userSetting.user_id = authUserId;
+    userSettingReq.user_id = authUserId;
 
     UserSettings.findByUserId(authUserId)
         .then(userSetting => {
@@ -137,12 +137,12 @@ router.post('/', authRequired, (req, res) => {
                     .status(409)
                     .json({ error: 'User Setting already exists' });
             }
-            UserSettings.create(userSetting)
+            UserSettings.create(userSettingReq)
                 .then(userSetting => {
                     if (userSetting) {
                         return res.status(200).json({
                             message: 'Successfully create the user settings',
-                            userSetting,
+                            settings: userSetting[0],
                         });
                     }
                     res.status(500).json({
@@ -253,7 +253,7 @@ router.put('/', authRequired, (req, res) => {
                                 .then(updated => {
                                     res.status(200).json({
                                         message: `Successfully updated user setting ${userSetting.id}`,
-                                        userSetting: updated,
+                                        settings: updated[0],
                                     });
                                 })
                                 .catch(err => {

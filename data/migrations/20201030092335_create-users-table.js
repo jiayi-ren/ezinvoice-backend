@@ -2,7 +2,7 @@ exports.up = async function (knex) {
     return await knex.schema
         .raw('CREATE EXTENSION IF NOT EXISTS "uuid-ossp"')
         .createTable('users', function (table) {
-            table.increments();
+            table.bigIncrements();
             table.string('name');
             table.string('email');
             table.string('picture');

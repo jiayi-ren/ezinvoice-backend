@@ -209,7 +209,7 @@ router.get('/:id', authRequired, (req, res) => {
 
 router.put('/:id', authRequired, (req, res) => {
     const user = req.body;
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const authUserId = req.user.id;
 
     if (authUserId === id) {
@@ -278,7 +278,7 @@ router.put('/:id', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 router.delete('/:id', authRequired, (req, res) => {
-    const id = parseInt(req.params.id);
+    const id = req.params.id;
     const authUserId = req.user.id;
 
     if (authUserId === id) {

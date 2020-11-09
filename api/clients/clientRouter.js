@@ -137,11 +137,9 @@ router.post('/', authRequired, (req, res) => {
     Clients.findByEmail(clientReq.email)
         .then(client => {
             if (client) {
-                return res
-                    .status(409)
-                    .json({
-                        error: `Client with email ${clientReq.email} already exists`,
-                    });
+                return res.status(409).json({
+                    error: `Client with email ${clientReq.email} already exists`,
+                });
             }
             Clients.create(clientReq)
                 .then(client => {
@@ -253,10 +251,7 @@ router.put('/:id', authRequired, (req, res) => {
         return Clients.findById(id)
             .then(client => {
                 if (client) {
-                    if (
-                        client.id === parseInt(id) &&
-                        client.id === clientReq.id
-                    ) {
+                    if (client.id === id && client.id === clientReq.id) {
                         return Clients.update(id, clientReq)
                             .then(updated => {
                                 res.status(200).json({

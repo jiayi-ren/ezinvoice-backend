@@ -1,3 +1,5 @@
+const { onUpdateTrigger } = require('../../config/knexfile')
+
 exports.up = async function (knex) {
     return await knex.schema.createTable('user_settings', function (table) {
         table.bigIncrements();
@@ -16,7 +18,8 @@ exports.up = async function (knex) {
             .onUpdate('CASCADE')
             .onDelete('CASCADE');
         table.timestamps(true, true);
-    });
+    })
+    .then(() => knex.raw(onUpdateTrigger('user_settings')));
 };
 
 exports.down = function (knex) {

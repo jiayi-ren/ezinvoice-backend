@@ -1,6 +1,8 @@
+const { onUpdateTrigger } = require('../../config/knexfile')
+
 exports.up = async function (knex) {
     return await knex.schema.createTable('clients', function (table) {
-        table.increments();
+        table.bigIncrements();
         table.string('name');
         table.string('email').unique();
         table.string('street');
@@ -8,7 +10,7 @@ exports.up = async function (knex) {
         table.string('zip');
         table.string('phone');
         table
-            .integer('user_id')
+            .bigInteger('user_id')
             .unsigned()
             .notNullable()
             .references('id')
@@ -16,7 +18,8 @@ exports.up = async function (knex) {
             .onUpdate('CASCADE')
             .onDelete('CASCADE');
         table.timestamps(true, true);
-    });
+    })
+    .then(() => knex.raw(onUpdateTrigger('clients')));
 };
 
 exports.down = function (knex) {

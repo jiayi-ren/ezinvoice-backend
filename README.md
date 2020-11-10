@@ -50,6 +50,17 @@ To get the server running locally:
 | PUT    | `/clients/:client_id` | owners         | Return an updated client                         |
 | DELETE | `/clients/:client_id` | owners         | Delete a single client                           |
 
+<br>
+
+#### Items Routes
+
+| Method | Endpoint          | Access Control | Description                                    |
+| ------ | ----------------- | -------------- | ---------------------------------------------- |
+| POST   | `/items/`         | authentication | Create and return a item for the current user. |
+| GET    | `/items/`         | owners         | Return info for an array of items              |
+| PUT    | `/items/:item_id` | owners         | Return an updated item                         |
+| DELETE | `/items/:item_id` | owners         | Delete a single item                           |
+
 # Data Model
 
 #### USERS
@@ -58,7 +69,7 @@ To get the server running locally:
 
 ```
 {
-  id: INTEGER
+  id: BIGINT
   name: STRING
   email: STRING
   picture: STRING
@@ -74,14 +85,14 @@ To get the server running locally:
 
 ```
 {
-  id: INTEGER
+  id: BIGINT
   name: STRING
   email: STRING
   street: STRING
   cityState: STRING
   zip: STRING
   phone: STRING
-  user_id: INTEGER
+  user_id: BIGINT
 }
 ```
 
@@ -93,14 +104,29 @@ To get the server running locally:
 
 ```
 {
-  id: INTEGER
+  id: BIGINT
   name: STRING
   email: STRING
   street: STRING
   cityState: STRING
   zip: STRING
   phone: STRING
-  user_id: INTEGER
+  user_id: BIGINT
+}
+```
+
+---
+
+#### ITEMS
+
+---
+
+```
+{
+  id: BIGINT
+  description: STRING
+  rate: FLOAT
+  user_id: BIGINT
 }
 ```
 

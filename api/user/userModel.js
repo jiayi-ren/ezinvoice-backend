@@ -43,6 +43,21 @@ const findOrCreateUser = async userObj => {
     }
 };
 
+const updateDocNumber = async (id, doc_number) => {
+    return await db('users')
+        .where({ id })
+        .update({ doc_number })
+        .returning('*');
+};
+
+const findDocNumberById = async id => {
+    return await db('users')
+        .where({ id })
+        .column('doc_number')
+        .first()
+        .select('*');
+};
+
 module.exports = {
     findAll,
     findById,
@@ -52,4 +67,6 @@ module.exports = {
     update,
     remove,
     findOrCreateUser,
+    updateDocNumber,
+    findDocNumberById,
 };

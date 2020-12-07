@@ -1,4 +1,4 @@
-const { onUpdateTrigger } = require('../../config/knexfile')
+const { onUpdateTrigger } = require('../../config/knexfile');
 
 exports.up = async function (knex) {
     return await knex.schema
@@ -9,6 +9,7 @@ exports.up = async function (knex) {
             table.string('email');
             table.string('picture');
             table.string('sub');
+            table.bigInteger('doc_number');
             table.timestamps(true, true);
         })
         .then(() => knex.raw(onUpdateTrigger('users')));

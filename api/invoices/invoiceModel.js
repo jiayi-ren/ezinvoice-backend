@@ -10,11 +10,7 @@ const findById = async id => {
 };
 
 const findAllByUserId = async user_id => {
-    return await db('invoices')
-        .where({ user_id: user_id })
-        .innerJoin('users', 'invoices.user_id', 'users.id')
-        .innerJoin('clients', 'invoices.client_id', 'clients.id')
-        .select('*');
+    return await db('invoices').where({ user_id: user_id }).select('*');
 };
 
 const findAllByClientId = async client_id => {

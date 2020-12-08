@@ -25,7 +25,7 @@ const router = express.Router();
  *                  example: true
  */
 router.get('/', function (req, res) {
-    res.status(200).json({ api: 'up', timestamp: Date.now() });
+    res.redirect('../api-docs');
 });
 
 router.get('/favicon.ico', (req, res) => res.status(204).end());

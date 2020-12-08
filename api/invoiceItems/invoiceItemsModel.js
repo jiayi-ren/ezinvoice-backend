@@ -4,34 +4,34 @@ const findAll = async () => {
     return await db('invoice_items');
 };
 
-const findByInvoiceId = invoiceId => {
-    return db('invoice_items').where({ invoiceId }).returning('*');
+const findByInvoiceId = async invoice_id => {
+    return await db('invoice_items').where({ invoice_id }).returning('*');
 };
 
-const findById = async id => {
-    return db('invoice_items').where({ id }).first().select('*');
+const findByItemId = async item_id => {
+    return await db('invoice_items').where({ item_id }).first().select('*');
 };
 
 const create = async invoiceItem => {
-    return db('invoice_items').insert(invoiceItem).returning('*');
+    return await db('invoice_items').insert(invoiceItem).returning('*');
 };
 
-const update = (id, invoiceItem) => {
-    return db('invoice_items')
-        .where({ id: id })
+const update = async (invoice_id, item_id, invoiceItem) => {
+    return await db('invoice_items')
+        .where({ invoice_id, item_id })
         .first()
         .update(invoiceItem)
         .returning('*');
 };
 
-const remove = async id => {
-    return await db('invoice_items').where({ id }).del();
+const remove = async invoice_id => {
+    return await db('invoice_items').where({ invoice_id }).del();
 };
 
 module.exports = {
     findAll,
     findByInvoiceId,
-    findById,
+    findByItemId,
     create,
     update,
     remove,

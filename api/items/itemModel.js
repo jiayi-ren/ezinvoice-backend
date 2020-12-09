@@ -31,6 +31,19 @@ const remove = async id => {
     return await db('items').where({ id }).del();
 };
 
+const findOrCreateItem = async item => {
+    const foundItem = await findByDescription(item.description).then(
+        item => item,
+    );
+    if (foundItem) {
+        return foundItem;
+    } else {
+        return await create(item).then(newItem => {
+            return newItem ? newItem[0] : newItem;
+        });
+    }
+};
+
 module.exports = {
     findAll,
     findById,
@@ -39,4 +52,5 @@ module.exports = {
     create,
     update,
     remove,
+    findOrCreateItem,
 };

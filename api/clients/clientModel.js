@@ -32,6 +32,17 @@ const remove = async id => {
     return await db('clients').where({ id }).del();
 };
 
+const findOrCreateClient = async client => {
+    const foundClient = await findByEmail(client.email).then(client => client);
+    if (foundClient) {
+        return foundClient;
+    } else {
+        return await create(client).then(newClient => {
+            return newClient ? newClient[0] : newClient;
+        });
+    }
+};
+
 module.exports = {
     findAll,
     findById,
@@ -40,4 +51,5 @@ module.exports = {
     create,
     update,
     remove,
+    findOrCreateClient,
 };

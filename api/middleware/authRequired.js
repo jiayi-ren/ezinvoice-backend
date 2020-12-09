@@ -19,7 +19,10 @@ const jwtVerifiedUser = async (req, res, next) => {
     try {
         const jwtPayload = req.user;
         const jwtUserObject = makeUserObj(jwtPayload);
-        const user = await Users.findOrCreateUser(jwtUserObject);
+        const user = await Users.findOrCreateUser({
+            ...jwtUserObject,
+            doc_number: 0,
+        });
         if (user) {
             req.user = user;
         } else {

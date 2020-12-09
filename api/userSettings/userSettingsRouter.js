@@ -140,7 +140,7 @@ router.post('/', authRequired, (req, res) => {
             UserSettings.create(userSettingReq)
                 .then(userSetting => {
                     if (userSetting) {
-                        return res.status(200).json({
+                        return res.status(201).json({
                             message: 'Successfully create the user settings',
                             settings: userSetting[0],
                         });

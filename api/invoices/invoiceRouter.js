@@ -4,7 +4,7 @@ const asyncMiddleWare = require('../middleware/asyncMiddleware');
 const router = express.Router();
 const Invoices = require('./invoiceModel');
 const Items = require('../items/itemModel');
-const Businesses = require('../business/businessModel');
+const Businesses = require('../businesses/businessModel');
 const Clients = require('../clients/clientModel');
 const Users = require('../user/userModel');
 const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
@@ -24,7 +24,7 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
  *          type: string
  *          description: The date of the invoice
  *          example: '11/11/2020'
- *        docNumber:
+ *        doc_number:
  *          type: string
  *          description: The document number
  *          example: '1'
@@ -120,7 +120,7 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
  *          type: string
  *          description: The date of the invoice
  *          example: '11/11/2020'
- *        docNumber:
+ *        doc_number:
  *          type: string
  *          description: The document number
  *          example: '1'
@@ -262,7 +262,7 @@ router.post(
             .then(docNumber => {
                 if (
                     parseInt(docNumber['doc_number']) + 1 !==
-                    parseInt(invoiceReq.docNumber)
+                    parseInt(invoiceReq.doc_number)
                 ) {
                     res.status(500).json({
                         error:
@@ -274,7 +274,7 @@ router.post(
                 } else {
                     Users.updateDocNumber(
                         authUserId,
-                        invoiceReq.docNumber,
+                        invoiceReq.doc_number,
                     ).catch(err => {
                         console.log(err);
                         res.status(500).json({ error: err.message });
@@ -336,7 +336,7 @@ router.post(
         }
 
         if (invoiceRes) {
-            res.status(200).json(invoiceRes);
+            res.status(201).json(invoiceRes);
         }
     }),
 );

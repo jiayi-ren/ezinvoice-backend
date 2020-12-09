@@ -1,4 +1,3 @@
-const knex = require('knex');
 const db = require('../../data/db-config');
 
 const findAll = async () => {

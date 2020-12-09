@@ -2,27 +2,27 @@ const express = require('express');
 const authRequired = require('../middleware/authRequired');
 const asyncMiddleWare = require('../middleware/asyncMiddleware');
 const router = express.Router();
-const Invoices = require('./invoiceModel');
+const Estimates = require('./estimateModel');
 const Items = require('../items/itemModel');
 const Businesses = require('../businesses/businessModel');
 const Clients = require('../clients/clientModel');
 const Users = require('../user/userModel');
-const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
+const EstimateItems = require('../estimateItems/estimateItemsModel');
 
 /**
  * @swagger
  * components:
  *  parameters:
- *    Invoice:
+ *    Estimate:
  *      type: object
  *      properties:
  *        title:
  *          type: string
- *          description: The title of the invoice
- *          example: Invoice
+ *          description: The title of the estimate
+ *          example: Estimate
  *        date:
  *          type: string
- *          description: The date of the invoice
+ *          description: The date of the estimate
  *          example: '11/11/2020'
  *        doc_number:
  *          type: string
@@ -93,32 +93,32 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
  *            properties:
  *              description:
  *                type: string
- *                description: The description of the invoice item
- *                example: 'invoice item 1'
+ *                description: The description of the estimate item
+ *                example: 'estimate item 1'
  *              quantity:
  *                type: integer
- *                description: The quantity of the invoice item
+ *                description: The quantity of the estimate item
  *                example: 3
  *              rate:
  *                type: double
- *                description: The unit price of the invoice item
+ *                description: The unit price of the estimate item
  *                example: 50.00
  *  schemas:
  *    schemas:
- *    Invoice:
+ *    Estimate:
  *      type: object
  *      properties:
  *        id:
  *          type: integer
- *          description: The id of the invoice
+ *          description: The id of the estimate
  *          example: 45
  *        title:
  *          type: string
- *          description: The title of the invoice
- *          example: Invoice
+ *          description: The title of the estimate
+ *          example: Estimate
  *        date:
  *          type: string
- *          description: The date of the invoice
+ *          description: The date of the estimate
  *          example: '11/11/2020'
  *        doc_number:
  *          type: string
@@ -126,11 +126,11 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
  *          example: '1'
  *        business:
  *          type: integer
- *          description: The business id of the business created invoice
+ *          description: The business id of the business created estimate
  *          example: 24
  *        client:
  *          type: integer
- *          description: The business id of the business created invoice
+ *          description: The business id of the business created estimate
  *          example: 25
  *        items:
  *          type: array
@@ -139,46 +139,46 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
  *            properties:
  *              id:
  *                type: integer
- *                description: The id of the invoice item
+ *                description: The id of the estimate item
  *                example: 45
  *              description:
  *                type: string
- *                description: The description of the invoice item
- *                example: 'invoice item 1'
+ *                description: The description of the estimate item
+ *                example: 'estimate item 1'
  *              quantity:
  *                type: integer
- *                description: The quantity of the invoice item
+ *                description: The quantity of the estimate item
  *                example: 3
  *              rate:
  *                type: double
- *                description: The unit price of the invoice item
+ *                description: The unit price of the estimate item
  *                example: 50.00
  */
 
 /**
  * @swagger
  *
- * /invoices:
+ * /estimates:
  *  post:
- *    description: Create a invoice for auth user
- *    summary: Create a single invoice
+ *    description: Create a estimate for auth user
+ *    summary: Create a single estimate
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - invoices
+ *      - estimates
  *    parameters:
  *      - in: body
- *        name: Invoice object
+ *        name: Estimate object
  *        required: true
  *        schema:
- *          $ref: '#/components/parameters/Invoice'
+ *          $ref: '#/components/parameters/Estimate'
  *    responses:
  *      200:
- *        description: A invoice object
+ *        description: A estimate object
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/components/schemas/Invoice'
+ *              $ref: '#/components/schemas/Estimate'
  *      401:
  *        $ref: '#/components/responses/UnauthorizedError'
  *      400:
@@ -191,15 +191,15 @@ router.post(
     '/',
     authRequired,
     asyncMiddleWare(async (req, res) => {
-        let invoiceReq = req.body;
+        let estimateReq = req.body;
         const authUserId = req.user.id;
-        invoiceReq.user_id = authUserId;
-        let itemsReq = invoiceReq.items;
-        let businessReq = invoiceReq.business;
-        let clientReq = invoiceReq.client;
+        estimateReq.user_id = authUserId;
+        let itemsReq = estimateReq.items;
+        let businessReq = estimateReq.business;
+        let clientReq = estimateReq.client;
         let itemsRes = [];
         let businessRes, clientRes;
-        let invoiceRes = {};
+        let estimateRes = {};
 
         for (const itemReq of itemsReq) {
             const { quantity, ...item } = itemReq;
@@ -262,19 +262,19 @@ router.post(
             .then(docNumber => {
                 if (
                     parseInt(docNumber['doc_number']) + 1 !==
-                    parseInt(invoiceReq.doc_number)
+                    parseInt(estimateReq.doc_number)
                 ) {
                     res.status(500).json({
                         error:
-                            'Failed to create an invoice for the user, check the doc number',
+                            'Failed to create an estimate for the user, check the doc number',
                     });
                     throw new Error(
-                        'Failed to create an invoice for the user, check the doc number',
+                        'Failed to create an estimate for the user, check the doc number',
                     );
                 } else {
                     Users.updateDocNumber(
                         authUserId,
-                        invoiceReq.doc_number,
+                        estimateReq.docNumber,
                     ).catch(err => {
                         console.log(err);
                         res.status(500).json({ error: err.message });
@@ -286,24 +286,26 @@ router.post(
                 res.status(500).json({ error: err.message });
             });
 
-        await Invoices.create({
-            title: invoiceReq.title,
-            doc_number: invoiceReq.docNumber,
-            user_id: invoiceReq.user_id,
+        await Estimates.create({
+            title: estimateReq.title,
+            doc_number: estimateReq.docNumber,
+            user_id: estimateReq.user_id,
             business_id: businessRes,
             client_id: clientRes,
-            date: invoiceReq.date,
+            date: estimateReq.date,
             is_paid: false,
         })
-            .then(invoice => {
-                if (invoice) {
-                    Object.assign(invoiceRes, invoice[0]);
-                    invoiceRes.items = [];
+            .then(estimate => {
+                if (estimate) {
+                    Object.assign(estimateRes, estimate[0]);
+                    estimateRes.items = [];
                 } else {
                     res.status(500).json({
-                        error: 'Failed to create an invoice for the user',
+                        error: 'Failed to create an estimate for the user',
                     });
-                    throw new Error('Failed to create an invoice for the user');
+                    throw new Error(
+                        'Failed to create an estimate for the user',
+                    );
                 }
             })
             .catch(err => {
@@ -312,20 +314,20 @@ router.post(
             });
 
         for (const item of itemsRes) {
-            await InvoiceItems.create({
-                invoice_id: invoiceRes.id,
+            await EstimateItems.create({
+                estimate_id: estimateRes.id,
                 item_id: item.id,
                 quantity: item.quantity,
             })
-                .then(invoiceItem => {
-                    if (invoiceItem) {
-                        invoiceRes.items.push(item);
+                .then(estimateItem => {
+                    if (estimateItem) {
+                        estimateRes.items.push(item);
                     } else {
                         res.status(500).json({
-                            error: `Failed to create a relationship between invoice ${invoiceRes.id} and item ${item.id} for the user`,
+                            error: `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
                         });
                         throw new Error(
-                            `Failed to create a relationship between invoice ${invoiceRes.id} and item ${item.id} for the user`,
+                            `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
                         );
                     }
                 })
@@ -335,8 +337,8 @@ router.post(
                 });
         }
 
-        if (invoiceRes) {
-            res.status(201).json(invoiceRes);
+        if (estimateRes) {
+            res.status(201).json(estimateRes);
         }
     }),
 );
@@ -344,27 +346,27 @@ router.post(
 /**
  * @swagger
  *
- * /invoices:
+ * /estimates:
  *  get:
- *    description: get invoices of the current auth user
- *    summary: Returns an array of invoices
+ *    description: get estimates of the current auth user
+ *    summary: Returns an array of estimates
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - invoices
+ *      - estimates
  *    responses:
  *      200:
- *        description: An array of invoice objects
+ *        description: An array of estimate objects
  *        content:
  *          application/json:
  *            schema:
  *              type: array
- *              invoices:
- *                  $ref: '#/components/schemas/Invoice'
+ *              estimates:
+ *                  $ref: '#/components/schemas/Estimate'
  *      401:
  *        $ref: '#/components/responses/UnauthorizedError'
  *      404:
- *        description: 'Invoices not found'
+ *        description: 'Estimates not found'
  *      5XX:
  *        $ref: '#/components/responses/InternalServerError'
  */
@@ -374,17 +376,17 @@ router.get(
     authRequired,
     asyncMiddleWare(async (req, res) => {
         const authUserId = req.user.id;
-        let invoicesRes = [];
+        let estimatesRes = [];
 
-        await Invoices.findAllByUserId(authUserId)
-            .then(invoices => {
-                if (!invoices) {
+        await Estimates.findAllByUserId(authUserId)
+            .then(estimates => {
+                if (!estimates) {
                     res.status(404).json({
-                        error: 'Invoices not found for current user',
+                        error: 'Estimates not found for current user',
                     });
-                    throw new Error('Invoices not found for current user');
+                    throw new Error('Estimates not found for current user');
                 } else {
-                    invoicesRes = [...invoices];
+                    estimatesRes = [...estimates];
                 }
             })
             .catch(err => {
@@ -392,13 +394,13 @@ router.get(
                 res.status(500).json({ error: err.message });
             });
 
-        for (let invoice of invoicesRes) {
-            const items = await InvoiceItems.findByInvoiceId(invoice.id);
-            invoice.items = items;
+        for (let estimate of estimatesRes) {
+            const items = await EstimateItems.findByEstimateId(estimate.id);
+            estimate.items = items;
         }
 
-        if (invoicesRes) {
-            res.status(200).json(invoicesRes);
+        if (estimatesRes) {
+            res.status(200).json(estimatesRes);
         }
     }),
 );
@@ -406,33 +408,33 @@ router.get(
 /**
  * @swagger
  *
- * /invoices/{invoice_id}:
+ * /estimates/{estimate_id}:
  *  put:
- *    description: update a invoice for current auth user
- *    summary: Returns a single invoice
+ *    description: update a estimate for current auth user
+ *    summary: Returns a single estimate
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - invoices
+ *      - estimates
  *    parameters:
  *      - in: body
- *        name: Invoice Object
+ *        name: Estimate Object
  *        required: true
  *        schema:
- *            $ref: '#/components/schemas/Invoice'
+ *            $ref: '#/components/schemas/Estimate'
  *    responses:
  *      200:
- *        description: 'Successfully updated Invoice'
+ *        description: 'Successfully updated Estimate'
  *        content:
  *          application/json:
  *            schema:
- *              $ref: '#/components/schemas/Invoice'
+ *              $ref: '#/components/schemas/Estimate'
  *      400:
  *        description: 'Bad Request'
  *      401:
  *        $ref: '#/components/responses/UnauthorizedError'
  *      404:
- *        description: 'Invoice not found'
+ *        description: 'Estimate not found'
  *      5XX:
  *        description: 'Internal Server Error'
  */
@@ -442,36 +444,36 @@ router.put(
     authRequired,
     asyncMiddleWare(async (req, res) => {
         const id = req.params.id;
-        const { items, ...invoiceReq } = req.body;
+        const { items, ...estimateReq } = req.body;
         const authUserId = req.user.id;
-        let invoiceRes = { items: [] };
+        let estimateRes = { items: [] };
         const itemsReq = items.reduce((result, item) => {
             let { id, ...rest } = item;
             return { ...result, [item.id]: { ...rest } };
         }, {});
 
-        if (invoiceReq.id !== parseInt(id)) {
+        if (estimateReq.id !== parseInt(id)) {
             res.status(400).json({
-                error: 'Invoice id doest not match with parameter id',
+                error: 'Estimate id doest not match with parameter id',
             });
-            throw new Error('Invoice id doest not match with parameter id');
+            throw new Error('Estimate id doest not match with parameter id');
         }
 
-        await Invoices.findById(id)
-            .then(async invoice => {
-                if (!invoice) {
-                    res.status(404).json({ error: `Invoice ${id} not found` });
-                    throw new Error(`Invoice ${id} not found`);
-                } else if (invoice.user_id !== authUserId) {
+        await Estimates.findById(id)
+            .then(async estimate => {
+                if (!estimate) {
+                    res.status(404).json({ error: `Estimate ${id} not found` });
+                    throw new Error(`Estimate ${id} not found`);
+                } else if (estimate.user_id !== authUserId) {
                     res.status(401).json({
-                        error: `Not Authorized to make changes to Invoice ${invoice.id}`,
+                        error: `Not Authorized to make changes to Estimate ${estimate.id}`,
                     });
                     throw new Error(
-                        `Not Authorized to make changes to Invoice ${invoice.id}`,
+                        `Not Authorized to make changes to Estimate ${estimate.id}`,
                     );
                 } else if (
-                    invoice.id === id &&
-                    invoice.user_id === authUserId
+                    estimate.id === id &&
+                    estimate.user_id === authUserId
                 ) {
                     for (const item of items) {
                         await Items.findById(item.id)
@@ -483,7 +485,7 @@ router.put(
                                     } = itemsReq[item.id];
                                     await Items.update(item.id, updateItem)
                                         .then(async item => {
-                                            invoiceRes.items.push(item[0]);
+                                            estimateRes.items.push(item[0]);
                                         })
                                         .catch(err => {
                                             res.status(500).json({
@@ -504,26 +506,28 @@ router.put(
                             });
                     }
 
-                    for (let i = 0; i < invoiceRes.items.length; i++) {
-                        await InvoiceItems.findByItemId(invoiceRes.items[i].id)
-                            .then(async invoiceItem => {
-                                if (invoiceItem) {
+                    for (let i = 0; i < estimateRes.items.length; i++) {
+                        await EstimateItems.findByItemId(
+                            estimateRes.items[i].id,
+                        )
+                            .then(async estimateItem => {
+                                if (estimateItem) {
                                     const {
                                         quantity,
                                         ...updateItem
-                                    } = itemsReq[invoiceItem.item_id];
-                                    await InvoiceItems.update(
-                                        invoiceItem.invoice_id,
-                                        invoiceItem.item_id,
+                                    } = itemsReq[estimateItem.item_id];
+                                    await EstimateItems.update(
+                                        estimateItem.estimate_id,
+                                        estimateItem.item_id,
                                         {
                                             quantity: quantity,
                                         },
                                     )
-                                        .then(invoiceItem => {
-                                            invoiceRes.items[i] = {
-                                                ...invoiceRes.items[i],
+                                        .then(estimateItem => {
+                                            estimateRes.items[i] = {
+                                                ...estimateRes.items[i],
                                                 quantity:
-                                                    invoiceItem[0].quantity,
+                                                    estimateItem[0].quantity,
                                             };
                                         })
                                         .catch(err => {
@@ -540,9 +544,9 @@ router.put(
                             });
                     }
 
-                    await Invoices.update(id, invoiceReq)
-                        .then(invoice => {
-                            Object.assign(invoiceRes, invoice[0]);
+                    await Estimates.update(id, estimateReq)
+                        .then(estimate => {
+                            Object.assign(estimateRes, estimate[0]);
                         })
                         .catch(err => {
                             res.status(500).json({ error: err.message });
@@ -556,8 +560,8 @@ router.put(
             });
 
         res.status(200).json({
-            message: `Successfully updated invoice ${invoiceRes.id}`,
-            invoice: invoiceRes,
+            message: `Successfully updated estimate ${estimateRes.id}`,
+            estimate: estimateRes,
         });
     }),
 );
@@ -565,21 +569,21 @@ router.put(
 /**
  * @swagger
  *
- * /invoices/{invoice_id}:
+ * /estimates/{estimate_id}:
  *  delete:
- *    description: Delete invoice of current auth user
- *    summary: Delete an invoice
+ *    description: Delete estimate of current auth user
+ *    summary: Delete an estimate
  *    security:
  *      - auth0: ['bearer token']
  *    tags:
- *      - invoices
+ *      - estimates
  *    responses:
  *      200:
- *        description: 'Successfully deleted invoice'
+ *        description: 'Successfully deleted estimate'
  *      401:
  *        $ref: '#/components/responses/UnauthorizedError'
  *      404:
- *        description: 'Invoice not found'
+ *        description: 'Estimate not found'
  *      5XX:
  *        $ref: '#/components/responses/InternalServerError'
  */
@@ -591,23 +595,23 @@ router.delete(
         const id = req.params.id;
         const authUserId = req.user.id;
 
-        await Invoices.findById(id)
-            .then(async invoice => {
-                if (!invoice) {
-                    res.status(404).json({ error: `Invoice ${id} not found` });
-                    throw new Error(`Invoice ${id} not found`);
-                } else if (invoice.user_id !== authUserId) {
+        await Estimates.findById(id)
+            .then(async estimate => {
+                if (!estimate) {
+                    res.status(404).json({ error: `Estimate ${id} not found` });
+                    throw new Error(`Estimate ${id} not found`);
+                } else if (estimate.user_id !== authUserId) {
                     res.status(401).json({
-                        error: `Not authorized to make changes to Invoice ${id}`,
+                        error: `Not authorized to make changes to Estimate ${id}`,
                     });
                     throw new Error(
-                        `Not authorized to make changes to Invoice ${id}`,
+                        `Not authorized to make changes to Estimate ${id}`,
                     );
-                } else if (invoice.user_id === authUserId) {
-                    await Invoices.remove(id)
+                } else if (estimate.user_id === authUserId) {
+                    await Estimates.remove(id)
                         .then(() => {
                             res.status(200).json({
-                                message: `Successfully deleted Invoice ${id}`,
+                                message: `Successfully deleted Estimate ${id}`,
                             });
                         })
                         .catch(err => {

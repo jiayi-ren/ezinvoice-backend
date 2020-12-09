@@ -25,6 +25,7 @@ const userSettingRouter = require('./userSettings/userSettingsRouter');
 const clientsRouter = require('./clients/clientRouter');
 const itemsRouter = require('./items/itemRouter');
 const invoicesRouter = require('./invoices/invoiceRouter');
+const estimatesRouter = require('./estimates/estimateRouter');
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/settings', userSettingRouter);
 app.use('/clients', clientsRouter);
 app.use('/items', itemsRouter);
 app.use('/invoices', invoicesRouter);
+app.use('/estimates', estimatesRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

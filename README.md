@@ -72,6 +72,17 @@ To get the server running locally:
 | PUT    | `/invoices/:invoice_id` | owners         | Return an updated invoice                         |
 | DELETE | `/invoices/:invoice_id` | owners         | Delete a single invoice                           |
 
+<br>
+
+#### Estimates Routes
+
+| Method | Endpoint                  | Access Control | Description                                        |
+| ------ | ------------------------- | -------------- | -------------------------------------------------- |
+| POST   | `/estimates/`             | authentication | Create and return a estimate for the current user. |
+| GET    | `/estimates/`             | owners         | Return info for an array of estimates              |
+| PUT    | `/estimates/:estimate_id` | owners         | Return an updated estimate                         |
+| DELETE | `/estimates/:estimate_id` | owners         | Delete a single estimate                           |
+
 # Data Model
 
 #### USERS
@@ -144,6 +155,33 @@ To get the server running locally:
 ---
 
 #### INVOICES
+
+---
+
+```
+{
+  id: BIGINT
+  title: STRING
+  doc_number: STRING
+  user_id: BIGINT
+  business_id: BIGINT
+  client_id: BIGINT
+  is_paid: BOOLEAN
+  notes: STRING
+  items: ARRAY of Items: {
+    id: BIGINT
+    description: STRING
+    rate: FLOAT
+    quantity: INTEGER
+    user_id: BIGINT
+  }
+
+}
+```
+
+---
+
+#### ESTIMATES
 
 ---
 

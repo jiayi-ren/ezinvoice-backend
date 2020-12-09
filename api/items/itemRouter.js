@@ -99,7 +99,7 @@ router.post('/', authRequired, (req, res) => {
             Items.create(itemReq)
                 .then(item => {
                     if (item) {
-                        return res.status(200).json({
+                        return res.status(201).json({
                             message: 'Successfully create the item',
                             item: item[0],
                         });

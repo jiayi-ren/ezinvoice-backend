@@ -144,7 +144,7 @@ router.post('/', authRequired, (req, res) => {
             Clients.create(clientReq)
                 .then(client => {
                     if (client) {
-                        return res.status(200).json({
+                        return res.status(201).json({
                             message: 'Successfully create the client',
                             client: client[0],
                         });

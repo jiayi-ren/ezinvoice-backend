@@ -61,6 +61,17 @@ To get the server running locally:
 | PUT    | `/items/:item_id` | owners         | Return an updated item                         |
 | DELETE | `/items/:item_id` | owners         | Delete a single item                           |
 
+<br>
+
+#### Invoices Routes
+
+| Method | Endpoint                | Access Control | Description                                       |
+| ------ | ----------------------- | -------------- | ------------------------------------------------- |
+| POST   | `/invoices/`            | authentication | Create and return a invoice for the current user. |
+| GET    | `/invoices/`            | owners         | Return info for an array of invoices              |
+| PUT    | `/invoices/:invoice_id` | owners         | Return an updated invoice                         |
+| DELETE | `/invoices/:invoice_id` | owners         | Delete a single invoice                           |
+
 # Data Model
 
 #### USERS
@@ -127,6 +138,33 @@ To get the server running locally:
   description: STRING
   rate: FLOAT
   user_id: BIGINT
+}
+```
+
+---
+
+#### INVOICES
+
+---
+
+```
+{
+  id: BIGINT
+  title: STRING
+  doc_number: STRING
+  user_id: BIGINT
+  business_id: BIGINT
+  client_id: BIGINT
+  is_paid: BOOLEAN
+  notes: STRING
+  items: ARRAY of Items: {
+    id: BIGINT
+    description: STRING
+    rate: FLOAT
+    quantity: INTEGER
+    user_id: BIGINT
+  }
+
 }
 ```
 

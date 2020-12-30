@@ -47,7 +47,7 @@ const updateDocNumber = async (id, doc_number) => {
     return await db('users')
         .where({ id })
         .update({ doc_number })
-        .returning('*');
+        .returning({ doc_number });
 };
 
 const findDocNumberById = async id => {

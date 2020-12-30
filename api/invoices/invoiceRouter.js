@@ -198,29 +198,35 @@ router.post(
         let businessReq = invoiceReq.business;
         let clientReq = invoiceReq.client;
         let itemsRes = [];
-        let businessRes, clientRes;
+        let businessRes, clientRes, docNumberRes;
         let invoiceRes = {};
 
-        for (const itemReq of itemsReq) {
-            const { quantity, ...item } = itemReq;
-            item.user_id = authUserId;
-            await Items.findOrCreateItem(item)
-                .then(item => {
-                    if (item) {
-                        itemsRes.push({ ...item, quantity: itemReq.quantity });
-                    } else {
-                        res.status(500).json({
-                            error: 'Failed to create an item for the user',
-                        });
-                        throw new Error(
-                            'Failed to create an item for the user',
-                        );
-                    }
-                })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+        if (itemsReq.length > 0) {
+            for (const itemReq of itemsReq) {
+                const { quantity, ...item } = itemReq;
+                item.user_id = authUserId;
+                await Items.findOrCreateItem(item)
+                    .then(item => {
+                        if (item) {
+                            itemsRes.push({
+                                ...item,
+                                quantity: itemReq.quantity,
+                            });
+                        } else {
+                            res.status(500).json({
+                                error: 'Failed to create an item for the user',
+                            });
+                            throw new Error(
+                                'Failed to create an item for the user',
+                            );
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        res.status(500).json({ error: err.message });
+                        throw new Error(err.message);
+                    });
+            }
         }
 
         await Businesses.findOrCreateBusiness({
@@ -240,6 +246,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
@@ -259,36 +266,29 @@ router.post(
             });
 
         await Users.findDocNumberById(authUserId)
-            .then(docNumber => {
-                if (
-                    parseInt(docNumber['doc_number']) + 1 !==
-                    parseInt(invoiceReq.doc_number)
-                ) {
-                    res.status(500).json({
-                        error:
-                            'Failed to create an invoice for the user, check the doc number',
-                    });
-                    throw new Error(
-                        'Failed to create an invoice for the user, check the doc number',
-                    );
-                } else {
-                    Users.updateDocNumber(
-                        authUserId,
-                        invoiceReq.doc_number,
-                    ).catch(err => {
+            .then(async docNumber => {
+                await Users.updateDocNumber(
+                    authUserId,
+                    parseInt(docNumber['doc_number']) + 1,
+                )
+                    .then(docNumber => {
+                        docNumberRes = docNumber[0];
+                    })
+                    .catch(err => {
                         console.log(err);
                         res.status(500).json({ error: err.message });
+                        throw new Error(err.message);
                     });
-                }
             })
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Invoices.create({
             title: invoiceReq.title,
-            doc_number: invoiceReq.docNumber,
+            doc_number: docNumberRes,
             user_id: invoiceReq.user_id,
             business_id: businessRes,
             client_id: clientRes,
@@ -309,6 +309,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         for (const item of itemsRes) {
@@ -332,11 +333,14 @@ router.post(
                 .catch(err => {
                     console.log(err);
                     res.status(500).json({ error: err.message });
+                    throw new Error(err.message);
                 });
         }
 
         if (invoiceRes) {
-            res.status(201).json(invoiceRes);
+            res.status(201).json({
+                invoice: invoiceRes,
+            });
         }
     }),
 );
@@ -393,8 +397,19 @@ router.get(
             });
 
         for (let invoice of invoicesRes) {
+            // find each item associated
+            invoice.items = [];
             const items = await InvoiceItems.findByInvoiceId(invoice.id);
-            invoice.items = items;
+            for (let item of items) {
+                const itemRes = await Items.findById(item.item_id);
+                invoice.items.push({
+                    ...itemRes,
+                    quantity: item.quantity,
+                });
+            }
+
+            // format date, yyyy-mm-dd
+            invoice.date = invoice.date.toISOString().substring(0, 10);
         }
 
         if (invoicesRes) {
@@ -442,15 +457,11 @@ router.put(
     authRequired,
     asyncMiddleWare(async (req, res) => {
         const id = req.params.id;
-        const { items, ...invoiceReq } = req.body;
+        const { items, business, client, ...invoiceReq } = req.body;
         const authUserId = req.user.id;
         let invoiceRes = { items: [] };
-        const itemsReq = items.reduce((result, item) => {
-            let { id, ...rest } = item;
-            return { ...result, [item.id]: { ...rest } };
-        }, {});
 
-        if (invoiceReq.id !== parseInt(id)) {
+        if (invoiceReq.id !== id) {
             res.status(400).json({
                 error: 'Invoice id doest not match with parameter id',
             });
@@ -473,45 +484,64 @@ router.put(
                     invoice.id === id &&
                     invoice.user_id === authUserId
                 ) {
-                    for (const item of items) {
-                        await Items.findById(item.id)
-                            .then(async item => {
-                                if (item) {
-                                    const {
-                                        quantity,
-                                        ...updateItem
-                                    } = itemsReq[item.id];
-                                    await Items.update(item.id, updateItem)
-                                        .then(async item => {
-                                            invoiceRes.items.push(item[0]);
-                                        })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
+                    for (const itemReq of items) {
+                        if (itemReq.id) {
+                            await Items.findById(itemReq.id)
+                                .then(async item => {
+                                    if (item) {
+                                        const {
+                                            quantity,
+                                            createdAt,
+                                            updatedAt,
+                                            ...updateItem
+                                        } = itemReq;
+                                        await Items.update(item.id, updateItem)
+                                            .then(async item => {
+                                                invoiceRes.items.push(item[0]);
+                                            })
+                                            .catch(err => {
+                                                res.status(500).json({
+                                                    error: err.message,
+                                                });
+                                                throw new Error(err.message);
                                             });
-                                            throw new Error(err.message);
+                                    } else {
+                                        res.status(404).json({
+                                            error: 'Item id not found',
                                         });
-                                } else {
-                                    res.status(404).json({
-                                        error: 'Item id not found',
+                                        throw new Error(err.message);
+                                    }
+                                })
+                                .catch(err => {
+                                    res.status(500).json({
+                                        error: err.message,
                                     });
                                     throw new Error(err.message);
-                                }
+                                });
+                        } else {
+                            const { quantity, ...newItem } = itemReq;
+                            await Items.create({
+                                ...newItem,
+                                user_id: authUserId,
                             })
-                            .catch(err => {
-                                res.status(500).json({ error: err.message });
-                                throw new Error(err.message);
-                            });
+                                .then(async item => {
+                                    invoiceRes.items.push(item[0]);
+                                })
+                                .catch(err => {
+                                    res.status(500).json({
+                                        error: err.message,
+                                    });
+                                    throw new Error(err.message);
+                                });
+                        }
                     }
-
                     for (let i = 0; i < invoiceRes.items.length; i++) {
                         await InvoiceItems.findByItemId(invoiceRes.items[i].id)
                             .then(async invoiceItem => {
                                 if (invoiceItem) {
-                                    const {
-                                        quantity,
-                                        ...updateItem
-                                    } = itemsReq[invoiceItem.item_id];
+                                    const { quantity, ...updateItem } = items[
+                                        i
+                                    ];
                                     await InvoiceItems.update(
                                         invoiceItem.invoice_id,
                                         invoiceItem.item_id,
@@ -519,6 +549,29 @@ router.put(
                                             quantity: quantity,
                                         },
                                     )
+                                        .then(invoiceItem => {
+                                            invoiceRes.items[i] = {
+                                                ...invoiceRes.items[i],
+                                                quantity:
+                                                    invoiceItem[0].quantity,
+                                            };
+                                        })
+                                        .catch(err => {
+                                            console.log('here');
+                                            res.status(500).json({
+                                                error: err.message,
+                                            });
+                                            throw new Error(err.message);
+                                        });
+                                } else {
+                                    const { quantity, ...updateItem } = items[
+                                        i
+                                    ];
+                                    await InvoiceItems.create({
+                                        invoice_id: invoiceReq.id,
+                                        item_id: invoiceRes.items[i].id,
+                                        quantity: quantity,
+                                    })
                                         .then(invoiceItem => {
                                             invoiceRes.items[i] = {
                                                 ...invoiceRes.items[i],
@@ -539,6 +592,24 @@ router.put(
                                 throw new Error(err.message);
                             });
                     }
+
+                    await Businesses.update(invoiceReq.business_id, business)
+                        .then(business => {
+                            invoiceRes.business = business;
+                        })
+                        .catch(err => {
+                            res.status(500).json({ error: err.message });
+                            throw new Error(err.message);
+                        });
+
+                    await Clients.update(invoiceReq.client_id, client)
+                        .then(client => {
+                            invoiceRes.client = client;
+                        })
+                        .catch(err => {
+                            res.status(500).json({ error: err.message });
+                            throw new Error(err.message);
+                        });
 
                     await Invoices.update(id, invoiceReq)
                         .then(invoice => {

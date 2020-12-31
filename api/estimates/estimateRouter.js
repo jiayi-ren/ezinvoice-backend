@@ -266,28 +266,19 @@ router.post(
             });
 
         await Users.findDocNumberById(authUserId)
-            .then(docNumber => {
-                if (
-                    parseInt(docNumber['doc_number']) + 1 !==
-                    parseInt(estimateReq.doc_number)
-                ) {
-                    res.status(500).json({
-                        error:
-                            'Failed to create an estimate for the user, check the doc number',
-                    });
-                    throw new Error(
-                        'Failed to create an estimate for the user, check the doc number',
-                    );
-                } else {
-                    Users.updateDocNumber(
-                        authUserId,
-                        estimateReq.docNumber,
-                    ).catch(err => {
+            .then(async docNumber => {
+                await Users.updateDocNumber(
+                    authUserId,
+                    parseInt(docNumber['doc_number']) + 1,
+                )
+                    .then(docNumber => {
+                        docNumberRes = docNumber[0];
+                    })
+                    .catch(err => {
                         console.log(err);
                         res.status(500).json({ error: err.message });
                         throw new Error(err.message);
                     });
-                }
             })
             .catch(err => {
                 console.log(err);

@@ -201,26 +201,31 @@ router.post(
         let businessRes, clientRes;
         let estimateRes = {};
 
-        for (const itemReq of itemsReq) {
-            const { quantity, ...item } = itemReq;
-            item.user_id = authUserId;
-            await Items.findOrCreateItem(item)
-                .then(item => {
-                    if (item) {
-                        itemsRes.push({ ...item, quantity: itemReq.quantity });
-                    } else {
-                        res.status(500).json({
-                            error: 'Failed to create an item for the user',
-                        });
-                        throw new Error(
-                            'Failed to create an item for the user',
-                        );
-                    }
-                })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+        if (itemsReq.length > 0) {
+            for (const itemReq of itemsReq) {
+                const { quantity, ...item } = itemReq;
+                item.user_id = authUserId;
+                await Items.findOrCreateItem(item)
+                    .then(item => {
+                        if (item) {
+                            itemsRes.push({
+                                ...item,
+                                quantity: itemReq.quantity,
+                            });
+                        } else {
+                            res.status(500).json({
+                                error: 'Failed to create an item for the user',
+                            });
+                            throw new Error(
+                                'Failed to create an item for the user',
+                            );
+                        }
+                    })
+                    .catch(err => {
+                        console.log(err);
+                        res.status(500).json({ error: err.message });
+                    });
+            }
         }
 
         await Businesses.findOrCreateBusiness({
@@ -240,6 +245,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
@@ -256,6 +262,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Users.findDocNumberById(authUserId)
@@ -278,12 +285,14 @@ router.post(
                     ).catch(err => {
                         console.log(err);
                         res.status(500).json({ error: err.message });
+                        throw new Error(err.message);
                     });
                 }
             })
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Estimates.create({
@@ -293,7 +302,6 @@ router.post(
             business_id: businessRes,
             client_id: clientRes,
             date: estimateReq.date,
-            is_paid: false,
         })
             .then(estimate => {
                 if (estimate) {
@@ -311,6 +319,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         for (const item of itemsRes) {
@@ -334,11 +343,14 @@ router.post(
                 .catch(err => {
                     console.log(err);
                     res.status(500).json({ error: err.message });
+                    throw new Error(err.message);
                 });
         }
 
         if (estimateRes) {
-            res.status(201).json(estimateRes);
+            res.status(201).json({
+                estimate: estimateRes,
+            });
         }
     }),
 );
@@ -395,8 +407,19 @@ router.get(
             });
 
         for (let estimate of estimatesRes) {
+            // find each item associated
+            estimate.items = [];
             const items = await EstimateItems.findByEstimateId(estimate.id);
-            estimate.items = items;
+            for (let item of items) {
+                const itemRes = await Items.findById(item.item_id);
+                estimate.items.push({
+                    ...itemRes,
+                    quantity: item.quantity,
+                });
+            }
+
+            // format date, yyyy-mm-dd
+            estimate.date = estimate.date.toISOString().substring(0, 10);
         }
 
         if (estimatesRes) {
@@ -444,15 +467,11 @@ router.put(
     authRequired,
     asyncMiddleWare(async (req, res) => {
         const id = req.params.id;
-        const { items, ...estimateReq } = req.body;
+        const { items, business, client, ...estimateReq } = req.body;
         const authUserId = req.user.id;
         let estimateRes = { items: [] };
-        const itemsReq = items.reduce((result, item) => {
-            let { id, ...rest } = item;
-            return { ...result, [item.id]: { ...rest } };
-        }, {});
 
-        if (estimateReq.id !== parseInt(id)) {
+        if (estimateReq.id !== id) {
             res.status(400).json({
                 error: 'Estimate id doest not match with parameter id',
             });
@@ -475,35 +494,56 @@ router.put(
                     estimate.id === id &&
                     estimate.user_id === authUserId
                 ) {
-                    for (const item of items) {
-                        await Items.findById(item.id)
-                            .then(async item => {
-                                if (item) {
-                                    const {
-                                        quantity,
-                                        ...updateItem
-                                    } = itemsReq[item.id];
-                                    await Items.update(item.id, updateItem)
-                                        .then(async item => {
-                                            estimateRes.items.push(item[0]);
-                                        })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
+                    for (const itemReq of items) {
+                        if (itemReq.id) {
+                            await Items.findById(itemReq.id)
+                                .then(async item => {
+                                    if (item) {
+                                        const {
+                                            quantity,
+                                            createdAt,
+                                            updatedAt,
+                                            ...updateItem
+                                        } = itemReq;
+                                        await Items.update(item.id, updateItem)
+                                            .then(async item => {
+                                                estimateRes.items.push(item[0]);
+                                            })
+                                            .catch(err => {
+                                                res.status(500).json({
+                                                    error: err.message,
+                                                });
+                                                throw new Error(err.message);
                                             });
-                                            throw new Error(err.message);
+                                    } else {
+                                        res.status(404).json({
+                                            error: 'Item id not found',
                                         });
-                                } else {
-                                    res.status(404).json({
-                                        error: 'Item id not found',
+                                        throw new Error(err.message);
+                                    }
+                                })
+                                .catch(err => {
+                                    res.status(500).json({
+                                        error: err.message,
                                     });
                                     throw new Error(err.message);
-                                }
+                                });
+                        } else {
+                            const { quantity, ...newItem } = itemReq;
+                            await Items.create({
+                                ...newItem,
+                                user_id: authUserId,
                             })
-                            .catch(err => {
-                                res.status(500).json({ error: err.message });
-                                throw new Error(err.message);
-                            });
+                                .then(async item => {
+                                    estimateRes.items.push(item[0]);
+                                })
+                                .catch(err => {
+                                    res.status(500).json({
+                                        error: err.message,
+                                    });
+                                    throw new Error(err.message);
+                                });
+                        }
                     }
 
                     for (let i = 0; i < estimateRes.items.length; i++) {
@@ -512,10 +552,9 @@ router.put(
                         )
                             .then(async estimateItem => {
                                 if (estimateItem) {
-                                    const {
-                                        quantity,
-                                        ...updateItem
-                                    } = itemsReq[estimateItem.item_id];
+                                    const { quantity, ...updateItem } = items[
+                                        i
+                                    ];
                                     await EstimateItems.update(
                                         estimateItem.estimate_id,
                                         estimateItem.item_id,
@@ -536,6 +575,28 @@ router.put(
                                             });
                                             throw new Error(err.message);
                                         });
+                                } else {
+                                    const { quantity, ...updateItem } = items[
+                                        i
+                                    ];
+                                    await EstimateItems.create({
+                                        estimate_id: estimateReq.id,
+                                        item_id: estimateRes.items[i].id,
+                                        quantity: quantity,
+                                    })
+                                        .then(estimateItem => {
+                                            estimateRes.items[i] = {
+                                                ...estimateRes.items[i],
+                                                quantity:
+                                                    estimateItem[0].quantity,
+                                            };
+                                        })
+                                        .catch(err => {
+                                            res.status(500).json({
+                                                error: err.message,
+                                            });
+                                            throw new Error(err.message);
+                                        });
                                 }
                             })
                             .catch(err => {
@@ -543,6 +604,24 @@ router.put(
                                 throw new Error(err.message);
                             });
                     }
+
+                    await Businesses.update(estimateReq.business_id, business)
+                        .then(business => {
+                            estimateRes.business = business;
+                        })
+                        .catch(err => {
+                            res.status(500).json({ error: err.message });
+                            throw new Error(err.message);
+                        });
+
+                    await Clients.update(estimateReq.client_id, client)
+                        .then(client => {
+                            estimateRes.client = client;
+                        })
+                        .catch(err => {
+                            res.status(500).json({ error: err.message });
+                            throw new Error(err.message);
+                        });
 
                     await Estimates.update(id, estimateReq)
                         .then(estimate => {

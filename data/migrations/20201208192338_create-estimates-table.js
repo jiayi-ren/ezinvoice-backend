@@ -30,7 +30,6 @@ exports.up = async function (knex) {
                 .inTable('clients')
                 .onUpdate('CASCADE')
                 .onDelete('CASCADE');
-            table.boolean('is_paid');
             table.date('date');
             table.string('notes');
             table.timestamps(true, true);

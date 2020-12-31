@@ -263,6 +263,7 @@ router.post(
             .catch(err => {
                 console.log(err);
                 res.status(500).json({ error: err.message });
+                throw new Error(err.message);
             });
 
         await Users.findDocNumberById(authUserId)
@@ -557,7 +558,6 @@ router.put(
                                             };
                                         })
                                         .catch(err => {
-                                            console.log('here');
                                             res.status(500).json({
                                                 error: err.message,
                                             });

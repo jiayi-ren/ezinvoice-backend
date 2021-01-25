@@ -45,6 +45,14 @@ const findOrCreateBusiness = async business => {
     }
 };
 
+const showBusiness = async id => {
+    return await db('businesses')
+        .where({ id })
+        .first()
+        .update('is_hidden', false)
+        .returning('*');
+};
+
 module.exports = {
     findAll,
     findById,
@@ -54,4 +62,5 @@ module.exports = {
     update,
     remove,
     findOrCreateBusiness,
+    showBusiness,
 };

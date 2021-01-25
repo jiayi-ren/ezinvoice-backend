@@ -52,6 +52,17 @@ To get the server running locally:
 
 <br>
 
+#### Businesses Routes
+
+| Method | Endpoint                   | Access Control | Description                                        |
+| ------ | -------------------------- | -------------- | -------------------------------------------------- |
+| POST   | `/businesses/`             | authentication | Create and return a business for the current user. |
+| GET    | `/businesses/`             | owners         | Return info for an array of businesses             |
+| PUT    | `/businesses/:business_id` | owners         | Return an updated business                         |
+| DELETE | `/businesses/:business_id` | owners         | Delete a single business                           |
+
+<br>
+
 #### Items Routes
 
 | Method | Endpoint          | Access Control | Description                                    |
@@ -111,7 +122,7 @@ To get the server running locally:
   name: STRING
   email: STRING
   street: STRING
-  cityState: STRING
+  city_state: STRING
   zip: STRING
   phone: STRING
   user_id: BIGINT
@@ -130,10 +141,30 @@ To get the server running locally:
   name: STRING
   email: STRING
   street: STRING
-  cityState: STRING
+  city_state: STRING
   zip: STRING
   phone: STRING
   user_id: BIGINT
+}
+```
+
+---
+
+#### BUSINESSES
+
+---
+
+```
+{
+  id: BIGINT
+  name: STRING
+  email: STRING
+  street: STRING
+  city_state: STRING
+  zip: STRING
+  phone: STRING
+  user_id: BIGINT
+  is_hidden: BOOLEAN
 }
 ```
 

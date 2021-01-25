@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Businesses = require('./businessModel');
@@ -125,7 +126,7 @@ const Businesses = require('./businessModel');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res) => {
+router.post('/', authRequired, (req, res, next) => {
     let businessReq = req.body;
     const authUserId = req.user.id;
     businessReq.user_id = authUserId;
@@ -142,26 +143,26 @@ router.post('/', authRequired, (req, res) => {
                 });
             }
             Businesses.create(businessReq)
-                .then(business => {
+                .then(async business => {
                     if (business) {
-                        return res.status(200).json({
-                            message: 'Successfully create the business',
-                            business: business[0],
-                        });
+                        return await Businesses.showBusiness(business[0].id)
+                            .then(business => {
+                                if (business) {
+                                    return res.status(200).json({
+                                        message:
+                                            'Successfully create the business',
+                                        business: business[0],
+                                    });
+                                }
+                                next(createError(500));
+                            })
+                            .catch(err => next(err));
                     }
-                    res.status(500).json({
-                        error: 'Failed to create a business for the user',
-                    });
+                    next(createError(500));
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+                .catch(err => next(err));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -192,22 +193,17 @@ router.post('/', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.get('/', authRequired, (req, res) => {
+router.get('/', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
 
     Businesses.findAllByUserId(authUserId)
         .then(businesses => {
-            if (businesses) {
+            if (businesses.length >= 0) {
                 return res.status(200).json(businesses);
             }
-            res.status(404).json({
-                error: 'Businesses not found for current user',
-            });
+            next(createError(404, 'Businesses not found for current user'));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -242,7 +238,7 @@ router.get('/', authRequired, (req, res) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res) => {
+router.put('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const businessReq = req.body;
     const authUserId = req.user.id;
@@ -260,25 +256,21 @@ router.put('/:id', authRequired, (req, res) => {
                                 });
                             })
                             .catch(err => {
-                                res.status(500).json({
-                                    message: `Failed to update business ${business.id}`,
-                                    error: err.message,
-                                });
+                                next(createError(500));
                             });
                     }
-                    return res.status(400).json({
-                        error: 'Business id doest not match with record',
-                    });
+                    next(
+                        createError(
+                            400,
+                            'Business id doest not match with record',
+                        ),
+                    );
                 }
-                res.status(404).json({
-                    error: 'Business not found for current user',
-                });
+                next(createError(404, 'Business not found for current user'));
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(createError(401, 'Not authorized to complete this request'));
 });
 
 /**
@@ -303,7 +295,7 @@ router.put('/:id', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.delete('/:id', authRequired, (req, res) => {
+router.delete('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
@@ -322,16 +314,13 @@ router.delete('/:id', authRequired, (req, res) => {
                             res.status(500).json({ error: err.message });
                         });
                 }
-                return res
-                    .status(401)
-                    .json({ error: 'Not authorized to complete this request' });
+                next(
+                    createError(401, 'Not authorized to complete this request'),
+                );
             }
-            res.status(404).json({ error: 'Business not found' });
+            next(createError(404, 'Business not found'));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 module.exports = router;

@@ -131,10 +131,6 @@ router.post('/', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
     businessReq.user_id = authUserId;
 
-    if (!businessReq.email) {
-        return res.status(400).json({ error: 'Business email required' });
-    }
-
     Businesses.findByEmail(businessReq.email)
         .then(business => {
             if (business) {

@@ -68,7 +68,7 @@ const Users = require('./userModel');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.get('/', authRequired, (req, res) => {
+router.get('/', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
 
     Users.findById(authUserId)
@@ -76,12 +76,9 @@ router.get('/', authRequired, (req, res) => {
             if (user) {
                 return res.status(200).json(user);
             }
-            res.status(404).json({ error: 'User not found' });
+            next(404, 'User not found');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -122,7 +119,7 @@ router.get('/', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.get('/:id', authRequired, (req, res) => {
+router.get('/:id', authRequired, (req, res, next) => {
     const id = parseInt(req.params.id);
     const authUserId = req.user.id;
 
@@ -132,14 +129,11 @@ router.get('/:id', authRequired, (req, res) => {
                 if (user) {
                     return res.status(200).json(user);
                 }
-                res.status(404).json({ error: 'User not found' });
+                next(404, 'User not found');
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -207,7 +201,7 @@ router.get('/:id', authRequired, (req, res) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res) => {
+router.put('/:id', authRequired, (req, res, next) => {
     const user = req.body;
     const id = req.params.id;
     const authUserId = req.user.id;
@@ -223,25 +217,13 @@ router.put('/:id', authRequired, (req, res) => {
                                 user: updated,
                             });
                         })
-                        .catch(err => {
-                            res.status(500).json({
-                                message: `Failed to update user ${id}`,
-                                error: err.message,
-                            });
-                        }),
+                        .catch(err => next(err)),
                 )
-                .catch(err => {
-                    res.status(404).json({
-                        message: `User ${id} not found`,
-                        error: err.message,
-                    });
-                });
+                .catch(err => next(404, `User ${id} not found`));
         }
-        return res
-            .status(400)
-            .json({ error: 'User body missing or incomplete ' });
+        next(400, 'User body missing or incomplete');
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -277,7 +259,7 @@ router.put('/:id', authRequired, (req, res) => {
  *      5XX:
  *        $ref: '#/components/responses/InternalServerError'
  */
-router.delete('/:id', authRequired, (req, res) => {
+router.delete('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
@@ -291,20 +273,14 @@ router.delete('/:id', authRequired, (req, res) => {
                                 message: `Successfully deleted user '${id}'`,
                             });
                         })
-                        .catch(err => {
-                            console.log(err);
-                            res.status(500).json({ error: err.message });
-                        });
+                        .catch(err => next(err));
                 } else {
-                    res.status(404).json({ error: 'User not found' });
+                    next(404, 'User not found');
                 }
             })
-            .catch(() => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-            });
+            .catch(() => next(err));
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 module.exports = router;

@@ -84,7 +84,7 @@ const Items = require('./itemModel');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res) => {
+router.post('/', authRequired, (req, res, next) => {
     let itemReq = req.body;
     const authUserId = req.user.id;
     itemReq.user_id = authUserId;
@@ -92,9 +92,10 @@ router.post('/', authRequired, (req, res) => {
     Items.findByDescription(itemReq.description)
         .then(item => {
             if (item) {
-                return res.status(409).json({
-                    error: `Item with description ${itemReq.description} already exists`,
-                });
+                next(
+                    409,
+                    `Item with description ${itemReq.description} already exists`,
+                );
             }
             Items.create(itemReq)
                 .then(item => {
@@ -104,19 +105,11 @@ router.post('/', authRequired, (req, res) => {
                             item: item[0],
                         });
                     }
-                    res.status(500).json({
-                        error: 'Failed to create a item for the user',
-                    });
+                    next(500, 'Failed to create a item for the user');
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+                .catch(err => next(err));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -155,14 +148,9 @@ router.get('/', authRequired, (req, res) => {
             if (items) {
                 return res.status(200).json(items);
             }
-            res.status(404).json({
-                error: 'Items not found for current user',
-            });
+            next(404, 'Items not found for current user');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -197,7 +185,7 @@ router.get('/', authRequired, (req, res) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res) => {
+router.put('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const itemReq = req.body;
     const authUserId = req.user.id;
@@ -214,26 +202,15 @@ router.put('/:id', authRequired, (req, res) => {
                                     item: updated[0],
                                 });
                             })
-                            .catch(err => {
-                                res.status(500).json({
-                                    message: `Failed to update item ${item.id}`,
-                                    error: err.message,
-                                });
-                            });
+                            .catch(err => next(err));
                     }
-                    return res.status(400).json({
-                        error: 'Item id doest not match with record',
-                    });
+                    return next(400, 'Item id doest not match with record');
                 }
-                res.status(404).json({
-                    error: 'Item not found for current user',
-                });
+                next(404, 'Item not found for current user');
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -258,7 +235,7 @@ router.put('/:id', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.delete('/:id', authRequired, (req, res) => {
+router.delete('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
@@ -272,21 +249,13 @@ router.delete('/:id', authRequired, (req, res) => {
                                 message: 'Successfully deleted the item',
                             });
                         })
-                        .catch(err => {
-                            console.log(err);
-                            res.status(500).json({ error: err.message });
-                        });
+                        .catch(err => next(err));
                 }
-                return res
-                    .status(401)
-                    .json({ error: 'Not authorized to complete this request' });
+                return next(401, 'Not authorized to complete this request');
             }
-            res.status(404).json({ error: 'Item not found' });
+            next(404, 'Item not found');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 module.exports = router;

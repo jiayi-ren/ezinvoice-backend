@@ -26,7 +26,7 @@ const jwtVerifiedUser = async (req, res, next) => {
         if (user) {
             req.user = user;
         } else {
-            throw new Error('Unable to process idToken');
+            next(500, 'Unable to process idToken');
         }
         next();
     } catch (err) {

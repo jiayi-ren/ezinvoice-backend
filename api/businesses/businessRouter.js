@@ -134,9 +134,11 @@ router.post('/', authRequired, (req, res, next) => {
     Businesses.findByEmail(businessReq.email)
         .then(business => {
             if (business) {
-                return res.status(409).json({
-                    error: `Business with email ${businessReq.email} already exists`,
-                });
+                next(
+                    409,
+                    `Business with email ${businessReq.email} already exists`,
+                    { expose: true },
+                );
             }
             Businesses.create(businessReq)
                 .then(async business => {
@@ -150,11 +152,11 @@ router.post('/', authRequired, (req, res, next) => {
                                         business: business[0],
                                     });
                                 }
-                                next(createError(500));
+                                next(500);
                             })
                             .catch(err => next(err));
                     }
-                    next(createError(500));
+                    next(500);
                 })
                 .catch(err => next(err));
         })
@@ -197,7 +199,11 @@ router.get('/', authRequired, (req, res, next) => {
             if (businesses.length >= 0) {
                 return res.status(200).json(businesses);
             }
-            next(createError(404, 'Businesses not found for current user'));
+            next(
+                createError(404, 'Businesses not found for current user', {
+                    expose: true,
+                }),
+            );
         })
         .catch(err => next(err));
 });
@@ -252,21 +258,30 @@ router.put('/:id', authRequired, (req, res, next) => {
                                 });
                             })
                             .catch(err => {
-                                next(createError(500));
+                                next(500);
                             });
                     }
                     next(
                         createError(
                             400,
                             'Business id doest not match with record',
+                            { expose: true },
                         ),
                     );
                 }
-                next(createError(404, 'Business not found for current user'));
+                next(
+                    createError(404, 'Business not found for current user', {
+                        expose: true,
+                    }),
+                );
             })
             .catch(err => next(err));
     }
-    next(createError(401, 'Not authorized to complete this request'));
+    next(
+        createError(401, 'Not authorized to complete this request', {
+            expose: true,
+        }),
+    );
 });
 
 /**
@@ -305,16 +320,14 @@ router.delete('/:id', authRequired, (req, res, next) => {
                                 message: 'Successfully deleted the business',
                             });
                         })
-                        .catch(err => {
-                            console.log(err);
-                            res.status(500).json({ error: err.message });
-                        });
+                        .catch(err => next(err));
                 }
                 next(
                     createError(401, 'Not authorized to complete this request'),
+                    { expose: true },
                 );
             }
-            next(createError(404, 'Business not found'));
+            next(createError(404, 'Business not found', { expose: true }));
         })
         .catch(err => next(err));
 });

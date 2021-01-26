@@ -213,7 +213,9 @@ router.post(
                                 quantity: itemReq.quantity,
                             });
                         } else {
-                            next(500, 'Failed to create an item for the user');
+                            next(500, 'Failed to create an item for the user', {
+                                expose: true,
+                            });
                         }
                     })
                     .catch(err => next(err));
@@ -228,7 +230,9 @@ router.post(
                 if (business) {
                     businessRes = business;
                 } else {
-                    next(500, 'Failed to create a business for the user');
+                    next(500, 'Failed to create a business for the user', {
+                        expose: true,
+                    });
                 }
             })
             .catch(err => next(err));
@@ -238,7 +242,9 @@ router.post(
                 if (client) {
                     clientRes = client;
                 } else {
-                    next(500, 'Failed to create a client for the user');
+                    next(500, 'Failed to create a client for the user', {
+                        expose: true,
+                    });
                 }
             })
             .catch(err => next(err));
@@ -270,7 +276,9 @@ router.post(
                     Object.assign(invoiceRes, invoice[0]);
                     invoiceRes.items = [];
                 } else {
-                    next(500, 'Failed to create an invoice for the user');
+                    next(500, 'Failed to create an invoice for the user', {
+                        expose: true,
+                    });
                 }
             })
             .catch(err => next(err));
@@ -288,6 +296,7 @@ router.post(
                         next(
                             500,
                             `Failed to create a relationship between invoice ${invoiceRes.id} and item ${item.id} for the user`,
+                            { expose: true },
                         );
                     }
                 })
@@ -343,7 +352,9 @@ router.get(
         await Invoices.findAllByUserId(authUserId)
             .then(invoices => {
                 if (!invoices) {
-                    next(404, 'Invoices not found for current user');
+                    next(404, 'Invoices not found for current user', {
+                        expose: true,
+                    });
                 } else {
                     invoicesRes = [...invoices];
                 }
@@ -421,7 +432,9 @@ router.put(
         let invoiceRes = { items: [] };
 
         if (invoiceReq.id !== id) {
-            next(400, 'Invoice id doest not match with parameter id');
+            next(400, 'Invoice id doest not match with parameter id', {
+                expose: true,
+            });
         }
 
         await Invoices.findById(id)
@@ -432,6 +445,7 @@ router.put(
                     next(
                         401,
                         `Not Authorized to make changes to Invoice ${invoice.id}`,
+                        { expose: true },
                     );
                 } else if (
                     invoice.id === id &&
@@ -454,7 +468,9 @@ router.put(
                                             })
                                             .catch(err => next(err));
                                     } else {
-                                        next(404, 'Item id not found');
+                                        next(404, 'Item id not found', {
+                                            expose: true,
+                                        });
                                     }
                                 })
                                 .catch(err => next(err));
@@ -574,11 +590,12 @@ router.delete(
         await Invoices.findById(id)
             .then(async invoice => {
                 if (!invoice) {
-                    next(404, `Invoice ${id} not found`);
+                    next(404, `Invoice ${id} not found`, { expose: true });
                 } else if (invoice.user_id !== authUserId) {
                     next(
                         401,
                         `Not authorized to make changes to Invoice ${id}`,
+                        { expose: true },
                     );
                 } else if (invoice.user_id === authUserId) {
                     await Invoices.remove(id)

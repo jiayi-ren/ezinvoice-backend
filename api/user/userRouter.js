@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Users = require('./userModel');
@@ -76,7 +77,7 @@ router.get('/', authRequired, (req, res, next) => {
             if (user) {
                 return res.status(200).json(user);
             }
-            next(404, 'User not found');
+            next(createError(404, 'User not found', { expose: true }));
         })
         .catch(err => next(err));
 });
@@ -129,11 +130,15 @@ router.get('/:id', authRequired, (req, res, next) => {
                 if (user) {
                     return res.status(200).json(user);
                 }
-                next(404, 'User not found');
+                next(createError(404, 'User not found', { expose: true }));
             })
             .catch(err => next(err));
     }
-    next(401, 'Not authorized to complete this request');
+    next(
+        createError(401, 'Not authorized to complete this request', {
+            expose: true,
+        }),
+    );
 });
 
 /**
@@ -219,11 +224,25 @@ router.put('/:id', authRequired, (req, res, next) => {
                         })
                         .catch(err => next(err)),
                 )
-                .catch(err => next(404, `User ${id} not found`));
+                .catch(err =>
+                    next(
+                        createError(404, `User ${id} not found`, {
+                            expose: true,
+                        }),
+                    ),
+                );
         }
-        next(400, 'User body missing or incomplete');
+        next(
+            createError(400, 'User body missing or incomplete', {
+                expose: true,
+            }),
+        );
     }
-    next(401, 'Not authorized to complete this request');
+    next(
+        createError(401, 'Not authorized to complete this request', {
+            expose: true,
+        }),
+    );
 });
 
 /**
@@ -275,12 +294,16 @@ router.delete('/:id', authRequired, (req, res, next) => {
                         })
                         .catch(err => next(err));
                 } else {
-                    next(404, 'User not found');
+                    next(createError(404, 'User not found', { expose: true }));
                 }
             })
             .catch(() => next(err));
     }
-    next(401, 'Not authorized to complete this request');
+    next(
+        createError(401, 'Not authorized to complete this request', {
+            expose: true,
+        }),
+    );
 });
 
 module.exports = router;

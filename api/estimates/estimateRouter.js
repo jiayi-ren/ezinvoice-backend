@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const asyncMiddleWare = require('../middleware/asyncMiddleware');
 const router = express.Router();
@@ -213,7 +214,15 @@ router.post(
                                 quantity: itemReq.quantity,
                             });
                         } else {
-                            next(500, 'Failed to create an item for the user');
+                            next(
+                                createError(
+                                    500,
+                                    'Failed to create an item for the user',
+                                    {
+                                        expose: true,
+                                    },
+                                ),
+                            );
                         }
                     })
                     .catch(err => next(err));
@@ -228,7 +237,15 @@ router.post(
                 if (business) {
                     businessRes = business;
                 } else {
-                    next(500, 'Failed to create a business for the user');
+                    next(
+                        createError(
+                            500,
+                            'Failed to create a business for the user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
             })
             .catch(err => next(err));
@@ -238,7 +255,15 @@ router.post(
                 if (client) {
                     clientRes = client;
                 } else {
-                    next(500, 'Failed to create a client for the user');
+                    next(
+                        createError(
+                            500,
+                            'Failed to create a client for the user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
             })
             .catch(err => next(err));
@@ -269,7 +294,15 @@ router.post(
                     Object.assign(estimateRes, estimate[0]);
                     estimateRes.items = [];
                 } else {
-                    next(500, 'Failed to create an estimate for the user');
+                    next(
+                        createError(
+                            500,
+                            'Failed to create an estimate for the user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
             })
             .catch(err => next(err));
@@ -285,8 +318,11 @@ router.post(
                         estimateRes.items.push(item);
                     } else {
                         next(
-                            500,
-                            `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
+                            createError(
+                                500,
+                                `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
+                                { expose: true },
+                            ),
                         );
                     }
                 })
@@ -342,7 +378,15 @@ router.get(
         await Estimates.findAllByUserId(authUserId)
             .then(estimates => {
                 if (!estimates) {
-                    next(404, 'Estimates not found for current user');
+                    next(
+                        createError(
+                            404,
+                            'Estimates not found for current user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 } else {
                     estimatesRes = [...estimates];
                 }
@@ -420,17 +464,32 @@ router.put(
         let estimateRes = { items: [] };
 
         if (estimateReq.id !== id) {
-            next(400, 'Estimate id doest not match with parameter id');
+            next(
+                createError(
+                    400,
+                    'Estimate id doest not match with parameter id',
+                    {
+                        expose: true,
+                    },
+                ),
+            );
         }
 
         await Estimates.findById(id)
             .then(async estimate => {
                 if (!estimate) {
-                    next(404, `Estimate ${id} not found`);
+                    next(
+                        createError(404, `Estimate ${id} not found`, {
+                            expose: true,
+                        }),
+                    );
                 } else if (estimate.user_id !== authUserId) {
                     next(
-                        401,
-                        `Not Authorized to make changes to Estimate ${estimate.id}`,
+                        createError(
+                            401,
+                            `Not Authorized to make changes to Estimate ${estimate.id}`,
+                            { expose: true },
+                        ),
                     );
                 } else if (
                     estimate.id === id &&
@@ -453,7 +512,15 @@ router.put(
                                             })
                                             .catch(err => next(err));
                                     } else {
-                                        next(404, 'Item id not found');
+                                        next(
+                                            createError(
+                                                404,
+                                                'Item id not found',
+                                                {
+                                                    expose: true,
+                                                },
+                                            ),
+                                        );
                                     }
                                 })
                                 .catch(err => next(err));
@@ -576,11 +643,18 @@ router.delete(
         await Estimates.findById(id)
             .then(async estimate => {
                 if (!estimate) {
-                    next(404, `Estimate ${id} not found`);
+                    next(
+                        createError(404, `Estimate ${id} not found`, {
+                            expose: true,
+                        }),
+                    );
                 } else if (estimate.user_id !== authUserId) {
                     next(
-                        401,
-                        `Not authorized to make changes to Estimate ${id}`,
+                        createError(
+                            401,
+                            `Not authorized to make changes to Estimate ${id}`,
+                            { expose: true },
+                        ),
                     );
                 } else if (estimate.user_id === authUserId) {
                     await Estimates.remove(id)

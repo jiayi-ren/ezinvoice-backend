@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const UserSettings = require('./userSettingsModel');
@@ -133,9 +134,11 @@ router.post('/', authRequired, (req, res, next) => {
     UserSettings.findByUserId(authUserId)
         .then(userSetting => {
             if (userSetting) {
-                return res
-                    .status(409)
-                    .json({ error: 'User Setting already exists' });
+                next(
+                    createError(409, 'User Setting already exists', {
+                        expose: true,
+                    }),
+                );
             }
             UserSettings.create(userSettingReq)
                 .then(userSetting => {
@@ -145,7 +148,15 @@ router.post('/', authRequired, (req, res, next) => {
                             settings: userSetting[0],
                         });
                     }
-                    next(500, 'Failed to create a new setting for the user');
+                    next(
+                        createError(
+                            500,
+                            'Failed to create a new setting for the user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 })
                 .catch(err => next(err));
         })
@@ -186,7 +197,11 @@ router.get('/', authRequired, (req, res) => {
             if (userSetting) {
                 return res.status(200).json(userSetting);
             }
-            next(404, 'User settings not found for current user');
+            next(
+                createError(404, 'User settings not found for current user', {
+                    expose: true,
+                }),
+            );
         })
         .catch(err => next(err));
 });
@@ -246,17 +261,36 @@ router.put('/', authRequired, (req, res) => {
                                 .catch(err => next(err));
                         }
                         next(
-                            400,
-                            'User setting id doest not match with record',
+                            createError(
+                                400,
+                                'User setting id doest not match with record',
+                                { expose: true },
+                            ),
                         );
                     }
-                    next(404, 'User setting not found for current user');
+                    next(
+                        createError(
+                            404,
+                            'User setting not found for current user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 })
                 .catch(err => next(err));
         }
-        next(400, 'User setting body missing or incomplete');
+        next(
+            createError(400, 'User setting body missing or incomplete', {
+                expose: true,
+            }),
+        );
     }
-    next(401, 'Not authorized to complete this request');
+    next(
+        createError(401, 'Not authorized to complete this request', {
+            expose: true,
+        }),
+    );
 });
 
 /**
@@ -297,9 +331,17 @@ router.delete('/', authRequired, (req, res) => {
                         })
                         .catch(err => next(err));
                 }
-                next(401, 'Not authorized to complete this request');
+                next(
+                    createError(
+                        401,
+                        'Not authorized to complete this request',
+                        {
+                            expose: true,
+                        },
+                    ),
+                );
             }
-            next(404, 'User setting not found');
+            next(createError(404, 'User setting not found', { expose: true }));
         })
         .catch(err => next(err));
 });

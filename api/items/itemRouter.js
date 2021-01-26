@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Items = require('./itemModel');
@@ -93,8 +94,11 @@ router.post('/', authRequired, (req, res, next) => {
         .then(item => {
             if (item) {
                 next(
-                    409,
-                    `Item with description ${itemReq.description} already exists`,
+                    createError(
+                        409,
+                        `Item with description ${itemReq.description} already exists`,
+                        { expose: true },
+                    ),
                 );
             }
             Items.create(itemReq)
@@ -105,7 +109,15 @@ router.post('/', authRequired, (req, res, next) => {
                             item: item[0],
                         });
                     }
-                    next(500, 'Failed to create a item for the user');
+                    next(
+                        createError(
+                            500,
+                            'Failed to create a item for the user',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 })
                 .catch(err => next(err));
         })
@@ -148,7 +160,11 @@ router.get('/', authRequired, (req, res) => {
             if (items) {
                 return res.status(200).json(items);
             }
-            next(404, 'Items not found for current user');
+            next(
+                createError(404, 'Items not found for current user', {
+                    expose: true,
+                }),
+            );
         })
         .catch(err => next(err));
 });
@@ -204,13 +220,25 @@ router.put('/:id', authRequired, (req, res, next) => {
                             })
                             .catch(err => next(err));
                     }
-                    return next(400, 'Item id doest not match with record');
+                    return next(
+                        createError(
+                            400,
+                            'Item id doest not match with record',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
-                next(404, 'Item not found for current user');
+                next(
+                    createError(404, 'Item not found for current user', {
+                        expose: true,
+                    }),
+                );
             })
             .catch(err => next(err));
     }
-    next(401, 'Not authorized to complete this request');
+    next((401, 'Not authorized to complete this request', { expose: true }));
 });
 
 /**
@@ -251,9 +279,17 @@ router.delete('/:id', authRequired, (req, res, next) => {
                         })
                         .catch(err => next(err));
                 }
-                return next(401, 'Not authorized to complete this request');
+                next(
+                    createError(
+                        401,
+                        'Not authorized to complete this request',
+                        {
+                            expose: true,
+                        },
+                    ),
+                );
             }
-            next(404, 'Item not found');
+            next(createError(404, 'Item not found', { expose: true }));
         })
         .catch(err => next(err));
 });

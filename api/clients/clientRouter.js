@@ -1,4 +1,5 @@
 const express = require('express');
+const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Clients = require('./clientModel');
@@ -133,9 +134,12 @@ router.post('/', authRequired, (req, res, next) => {
     Clients.findByEmail(clientReq.email)
         .then(client => {
             if (client) {
-                return next(
-                    409,
-                    `Client with email ${clientReq.email} already exists`,
+                next(
+                    createError(
+                        409,
+                        `Client with email ${clientReq.email} already exists`,
+                        { expose: true },
+                    ),
                 );
             }
             Clients.create(clientReq)
@@ -146,7 +150,7 @@ router.post('/', authRequired, (req, res, next) => {
                             client: client[0],
                         });
                     }
-                    next(500, 'Failed to create a client for the user');
+                    next(500);
                 })
                 .catch(err => next(err));
         })
@@ -189,7 +193,11 @@ router.get('/', authRequired, (req, res, next) => {
             if (clients) {
                 return res.status(200).json(clients);
             }
-            next(404, 'Clients not found for current user');
+            next(
+                createError(404, 'Clients not found for current user', {
+                    expose: true,
+                }),
+            );
         })
         .catch(err => next(err));
 });
@@ -245,9 +253,21 @@ router.put('/:id', authRequired, (req, res) => {
                             })
                             .catch(err => next(err));
                     }
-                    return next(400, 'Client id doest not match with record');
+                    next(
+                        createError(
+                            400,
+                            'Client id doest not match with record',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
-                next(404, 'Client not found for current user');
+                next(
+                    createError(404, 'Client not found for current user', {
+                        expose: true,
+                    }),
+                );
             })
             .catch(err => next(err));
     }
@@ -292,9 +312,17 @@ router.delete('/:id', authRequired, (req, res) => {
                         })
                         .catch(err => next(err));
                 }
-                return next(401, 'Not authorized to complete this request');
+                next(
+                    createError(
+                        401,
+                        'Not authorized to complete this request',
+                        {
+                            expose: true,
+                        },
+                    ),
+                );
             }
-            next(404, 'Client not found');
+            next(createError(404, 'Client not found', { expose: true }));
         })
         .catch(err => next(err));
 });

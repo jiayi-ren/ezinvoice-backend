@@ -125,7 +125,7 @@ const UserSettings = require('./userSettingsModel');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res) => {
+router.post('/', authRequired, (req, res, next) => {
     let userSettingReq = req.body;
     const authUserId = req.user.id;
     userSettingReq.user_id = authUserId;
@@ -145,19 +145,11 @@ router.post('/', authRequired, (req, res) => {
                             settings: userSetting[0],
                         });
                     }
-                    res.status(500).json({
-                        error: 'Failed to create a new setting for the user',
-                    });
+                    next(500, 'Failed to create a new setting for the user');
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+                .catch(err => next(err));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -194,14 +186,9 @@ router.get('/', authRequired, (req, res) => {
             if (userSetting) {
                 return res.status(200).json(userSetting);
             }
-            res.status(404).json({
-                error: 'User settings not found for current user',
-            });
+            next(404, 'User settings not found for current user');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -256,31 +243,20 @@ router.put('/', authRequired, (req, res) => {
                                         settings: updated[0],
                                     });
                                 })
-                                .catch(err => {
-                                    res.status(500).json({
-                                        message: `Failed to update user setting ${userSetting.id}`,
-                                        error: err.message,
-                                    });
-                                });
+                                .catch(err => next(err));
                         }
-                        return res.status(400).json({
-                            error:
-                                'User setting id doest not match with record',
-                        });
+                        next(
+                            400,
+                            'User setting id doest not match with record',
+                        );
                     }
-                    res.status(404).json({
-                        error: 'User setting not found for current user',
-                    });
+                    next(404, 'User setting not found for current user');
                 })
-                .catch(err => {
-                    res.status(500).json({ error: err.message });
-                });
+                .catch(err => next(err));
         }
-        return res
-            .status(400)
-            .json({ error: 'User setting body missing or incomplete ' });
+        next(400, 'User setting body missing or incomplete');
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -319,21 +295,13 @@ router.delete('/', authRequired, (req, res) => {
                                     'Successfully deleted the user setting',
                             });
                         })
-                        .catch(err => {
-                            console.log(err);
-                            res.status(500).json({ error: err.message });
-                        });
+                        .catch(err => next(err));
                 }
-                return res
-                    .status(401)
-                    .json({ error: 'Not authorized to complete this request' });
+                next(401, 'Not authorized to complete this request');
             }
-            res.status(404).json({ error: 'User setting not found' });
+            next(404, 'User setting not found');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 module.exports = router;

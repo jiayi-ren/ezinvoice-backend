@@ -190,7 +190,7 @@ const InvoiceItems = require('../invoiceItems/invoiceItemsModel');
 router.post(
     '/',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         let invoiceReq = req.body;
         const authUserId = req.user.id;
         invoiceReq.user_id = authUserId;
@@ -213,19 +213,10 @@ router.post(
                                 quantity: itemReq.quantity,
                             });
                         } else {
-                            res.status(500).json({
-                                error: 'Failed to create an item for the user',
-                            });
-                            throw new Error(
-                                'Failed to create an item for the user',
-                            );
+                            next(500, 'Failed to create an item for the user');
                         }
                     })
-                    .catch(err => {
-                        console.log(err);
-                        res.status(500).json({ error: err.message });
-                        throw new Error(err.message);
-                    });
+                    .catch(err => next(err));
             }
         }
 
@@ -237,34 +228,20 @@ router.post(
                 if (business) {
                     businessRes = business.id;
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create a business for the user',
-                    });
-                    throw new Error('Failed to create a business for the user');
+                    next(500, 'Failed to create a business for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
             .then(client => {
                 if (client) {
                     clientRes = client.id;
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create a client for the user',
-                    });
-                    throw new Error('Failed to create a client for the user');
+                    next(500, 'Failed to create a client for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Users.findDocNumberById(authUserId)
             .then(async docNumber => {
@@ -275,17 +252,9 @@ router.post(
                     .then(docNumber => {
                         docNumberRes = docNumber[0];
                     })
-                    .catch(err => {
-                        console.log(err);
-                        res.status(500).json({ error: err.message });
-                        throw new Error(err.message);
-                    });
+                    .catch(err => next(err));
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Invoices.create({
             title: invoiceReq.title,
@@ -301,17 +270,10 @@ router.post(
                     Object.assign(invoiceRes, invoice[0]);
                     invoiceRes.items = [];
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create an invoice for the user',
-                    });
-                    throw new Error('Failed to create an invoice for the user');
+                    next(500, 'Failed to create an invoice for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         for (const item of itemsRes) {
             await InvoiceItems.create({
@@ -323,19 +285,13 @@ router.post(
                     if (invoiceItem) {
                         invoiceRes.items.push(item);
                     } else {
-                        res.status(500).json({
-                            error: `Failed to create a relationship between invoice ${invoiceRes.id} and item ${item.id} for the user`,
-                        });
-                        throw new Error(
+                        next(
+                            500,
                             `Failed to create a relationship between invoice ${invoiceRes.id} and item ${item.id} for the user`,
                         );
                     }
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                    throw new Error(err.message);
-                });
+                .catch(err => next(err));
         }
 
         if (invoiceRes) {
@@ -377,25 +333,19 @@ router.post(
 router.get(
     '/',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         const authUserId = req.user.id;
         let invoicesRes = [];
 
         await Invoices.findAllByUserId(authUserId)
             .then(invoices => {
                 if (!invoices) {
-                    res.status(404).json({
-                        error: 'Invoices not found for current user',
-                    });
-                    throw new Error('Invoices not found for current user');
+                    next(404, 'Invoices not found for current user');
                 } else {
                     invoicesRes = [...invoices];
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
 
         for (let invoice of invoicesRes) {
             // find each item associated
@@ -463,22 +413,16 @@ router.put(
         let invoiceRes = { items: [] };
 
         if (invoiceReq.id !== id) {
-            res.status(400).json({
-                error: 'Invoice id doest not match with parameter id',
-            });
-            throw new Error('Invoice id doest not match with parameter id');
+            next(400, 'Invoice id doest not match with parameter id');
         }
 
         await Invoices.findById(id)
             .then(async invoice => {
                 if (!invoice) {
-                    res.status(404).json({ error: `Invoice ${id} not found` });
-                    throw new Error(`Invoice ${id} not found`);
+                    next(404, `Invoice ${id} not found`);
                 } else if (invoice.user_id !== authUserId) {
-                    res.status(401).json({
-                        error: `Not Authorized to make changes to Invoice ${invoice.id}`,
-                    });
-                    throw new Error(
+                    next(
+                        401,
                         `Not Authorized to make changes to Invoice ${invoice.id}`,
                     );
                 } else if (
@@ -500,25 +444,12 @@ router.put(
                                             .then(async item => {
                                                 invoiceRes.items.push(item[0]);
                                             })
-                                            .catch(err => {
-                                                res.status(500).json({
-                                                    error: err.message,
-                                                });
-                                                throw new Error(err.message);
-                                            });
+                                            .catch(err => next(err));
                                     } else {
-                                        res.status(404).json({
-                                            error: 'Item id not found',
-                                        });
-                                        throw new Error(err.message);
+                                        next(404, 'Item id not found');
                                     }
                                 })
-                                .catch(err => {
-                                    res.status(500).json({
-                                        error: err.message,
-                                    });
-                                    throw new Error(err.message);
-                                });
+                                .catch(err => next(err));
                         } else {
                             const { quantity, ...newItem } = itemReq;
                             await Items.create({
@@ -528,12 +459,7 @@ router.put(
                                 .then(async item => {
                                     invoiceRes.items.push(item[0]);
                                 })
-                                .catch(err => {
-                                    res.status(500).json({
-                                        error: err.message,
-                                    });
-                                    throw new Error(err.message);
-                                });
+                                .catch(err => next(err));
                         }
                     }
                     for (let i = 0; i < invoiceRes.items.length; i++) {
@@ -557,12 +483,7 @@ router.put(
                                                     invoiceItem[0].quantity,
                                             };
                                         })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
-                                            });
-                                            throw new Error(err.message);
-                                        });
+                                        .catch(err => next(err));
                                 } else {
                                     const { quantity, ...updateItem } = items[
                                         i
@@ -579,52 +500,32 @@ router.put(
                                                     invoiceItem[0].quantity,
                                             };
                                         })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
-                                            });
-                                            throw new Error(err.message);
-                                        });
+                                        .catch(err => next(err));
                                 }
                             })
-                            .catch(err => {
-                                res.status(500).json({ error: err.message });
-                                throw new Error(err.message);
-                            });
+                            .catch(err => next(err));
                     }
 
                     await Businesses.update(invoiceReq.business_id, business)
                         .then(business => {
                             invoiceRes.business = business;
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
 
                     await Clients.update(invoiceReq.client_id, client)
                         .then(client => {
                             invoiceRes.client = client;
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
 
                     await Invoices.update(id, invoiceReq)
                         .then(invoice => {
                             Object.assign(invoiceRes, invoice[0]);
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
                 }
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         res.status(200).json({
             message: `Successfully updated invoice ${invoiceRes.id}`,
@@ -665,13 +566,10 @@ router.delete(
         await Invoices.findById(id)
             .then(async invoice => {
                 if (!invoice) {
-                    res.status(404).json({ error: `Invoice ${id} not found` });
-                    throw new Error(`Invoice ${id} not found`);
+                    next(404, `Invoice ${id} not found`);
                 } else if (invoice.user_id !== authUserId) {
-                    res.status(401).json({
-                        error: `Not authorized to make changes to Invoice ${id}`,
-                    });
-                    throw new Error(
+                    next(
+                        401,
                         `Not authorized to make changes to Invoice ${id}`,
                     );
                 } else if (invoice.user_id === authUserId) {
@@ -681,16 +579,10 @@ router.delete(
                                 message: `Successfully deleted Invoice ${id}`,
                             });
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
                 }
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
     }),
 );
 

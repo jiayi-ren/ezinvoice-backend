@@ -190,7 +190,7 @@ const EstimateItems = require('../estimateItems/estimateItemsModel');
 router.post(
     '/',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         let estimateReq = req.body;
         const authUserId = req.user.id;
         estimateReq.user_id = authUserId;
@@ -213,18 +213,10 @@ router.post(
                                 quantity: itemReq.quantity,
                             });
                         } else {
-                            res.status(500).json({
-                                error: 'Failed to create an item for the user',
-                            });
-                            throw new Error(
-                                'Failed to create an item for the user',
-                            );
+                            next(500, 'Failed to create an item for the user');
                         }
                     })
-                    .catch(err => {
-                        console.log(err);
-                        res.status(500).json({ error: err.message });
-                    });
+                    .catch(err => next(err));
             }
         }
 
@@ -236,34 +228,20 @@ router.post(
                 if (business) {
                     businessRes = business.id;
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create a business for the user',
-                    });
-                    throw new Error('Failed to create a business for the user');
+                    next(500, 'Failed to create a business for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
             .then(client => {
                 if (client) {
                     clientRes = client.id;
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create a client for the user',
-                    });
-                    throw new Error('Failed to create a client for the user');
+                    next(500, 'Failed to create a client for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Users.findDocNumberById(authUserId)
             .then(async docNumber => {
@@ -274,17 +252,9 @@ router.post(
                     .then(docNumber => {
                         docNumberRes = docNumber[0];
                     })
-                    .catch(err => {
-                        console.log(err);
-                        res.status(500).json({ error: err.message });
-                        throw new Error(err.message);
-                    });
+                    .catch(err => next(err));
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         await Estimates.create({
             title: estimateReq.title,
@@ -299,19 +269,10 @@ router.post(
                     Object.assign(estimateRes, estimate[0]);
                     estimateRes.items = [];
                 } else {
-                    res.status(500).json({
-                        error: 'Failed to create an estimate for the user',
-                    });
-                    throw new Error(
-                        'Failed to create an estimate for the user',
-                    );
+                    next(500, 'Failed to create an estimate for the user');
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         for (const item of itemsRes) {
             await EstimateItems.create({
@@ -323,19 +284,13 @@ router.post(
                     if (estimateItem) {
                         estimateRes.items.push(item);
                     } else {
-                        res.status(500).json({
-                            error: `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
-                        });
-                        throw new Error(
+                        next(
+                            500,
                             `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
                         );
                     }
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                    throw new Error(err.message);
-                });
+                .catch(err => next(err));
         }
 
         if (estimateRes) {
@@ -377,25 +332,19 @@ router.post(
 router.get(
     '/',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         const authUserId = req.user.id;
         let estimatesRes = [];
 
         await Estimates.findAllByUserId(authUserId)
             .then(estimates => {
                 if (!estimates) {
-                    res.status(404).json({
-                        error: 'Estimates not found for current user',
-                    });
-                    throw new Error('Estimates not found for current user');
+                    next(404, 'Estimates not found for current user');
                 } else {
                     estimatesRes = [...estimates];
                 }
             })
-            .catch(err => {
-                console.log(err);
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
 
         for (let estimate of estimatesRes) {
             // find each item associated
@@ -456,29 +405,23 @@ router.get(
 router.put(
     '/:id',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         const id = req.params.id;
         const { items, business, client, ...estimateReq } = req.body;
         const authUserId = req.user.id;
         let estimateRes = { items: [] };
 
         if (estimateReq.id !== id) {
-            res.status(400).json({
-                error: 'Estimate id doest not match with parameter id',
-            });
-            throw new Error('Estimate id doest not match with parameter id');
+            next(400, 'Estimate id doest not match with parameter id');
         }
 
         await Estimates.findById(id)
             .then(async estimate => {
                 if (!estimate) {
-                    res.status(404).json({ error: `Estimate ${id} not found` });
-                    throw new Error(`Estimate ${id} not found`);
+                    next(404, `Estimate ${id} not found`);
                 } else if (estimate.user_id !== authUserId) {
-                    res.status(401).json({
-                        error: `Not Authorized to make changes to Estimate ${estimate.id}`,
-                    });
-                    throw new Error(
+                    next(
+                        401,
                         `Not Authorized to make changes to Estimate ${estimate.id}`,
                     );
                 } else if (
@@ -500,25 +443,12 @@ router.put(
                                             .then(async item => {
                                                 estimateRes.items.push(item[0]);
                                             })
-                                            .catch(err => {
-                                                res.status(500).json({
-                                                    error: err.message,
-                                                });
-                                                throw new Error(err.message);
-                                            });
+                                            .catch(err => next(err));
                                     } else {
-                                        res.status(404).json({
-                                            error: 'Item id not found',
-                                        });
-                                        throw new Error(err.message);
+                                        next(404, 'Item id not found');
                                     }
                                 })
-                                .catch(err => {
-                                    res.status(500).json({
-                                        error: err.message,
-                                    });
-                                    throw new Error(err.message);
-                                });
+                                .catch(err => next(err));
                         } else {
                             const { quantity, ...newItem } = itemReq;
                             await Items.create({
@@ -528,12 +458,7 @@ router.put(
                                 .then(async item => {
                                     estimateRes.items.push(item[0]);
                                 })
-                                .catch(err => {
-                                    res.status(500).json({
-                                        error: err.message,
-                                    });
-                                    throw new Error(err.message);
-                                });
+                                .catch(err => next(err));
                         }
                     }
 
@@ -560,12 +485,7 @@ router.put(
                                                     estimateItem[0].quantity,
                                             };
                                         })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
-                                            });
-                                            throw new Error(err.message);
-                                        });
+                                        .catch(err => next(err));
                                 } else {
                                     const { quantity, ...updateItem } = items[
                                         i
@@ -582,52 +502,32 @@ router.put(
                                                     estimateItem[0].quantity,
                                             };
                                         })
-                                        .catch(err => {
-                                            res.status(500).json({
-                                                error: err.message,
-                                            });
-                                            throw new Error(err.message);
-                                        });
+                                        .catch(err => next(err));
                                 }
                             })
-                            .catch(err => {
-                                res.status(500).json({ error: err.message });
-                                throw new Error(err.message);
-                            });
+                            .catch(err => next(err));
                     }
 
                     await Businesses.update(estimateReq.business_id, business)
                         .then(business => {
                             estimateRes.business = business;
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
 
                     await Clients.update(estimateReq.client_id, client)
                         .then(client => {
                             estimateRes.client = client;
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
 
                     await Estimates.update(id, estimateReq)
                         .then(estimate => {
                             Object.assign(estimateRes, estimate[0]);
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
                 }
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
 
         res.status(200).json({
             message: `Successfully updated estimate ${estimateRes.id}`,
@@ -661,20 +561,17 @@ router.put(
 router.delete(
     '/:id',
     authRequired,
-    asyncMiddleWare(async (req, res) => {
+    asyncMiddleWare(async (req, res, next) => {
         const id = req.params.id;
         const authUserId = req.user.id;
 
         await Estimates.findById(id)
             .then(async estimate => {
                 if (!estimate) {
-                    res.status(404).json({ error: `Estimate ${id} not found` });
-                    throw new Error(`Estimate ${id} not found`);
+                    next(404, `Estimate ${id} not found`);
                 } else if (estimate.user_id !== authUserId) {
-                    res.status(401).json({
-                        error: `Not authorized to make changes to Estimate ${id}`,
-                    });
-                    throw new Error(
+                    next(
+                        401,
                         `Not authorized to make changes to Estimate ${id}`,
                     );
                 } else if (estimate.user_id === authUserId) {
@@ -684,16 +581,10 @@ router.delete(
                                 message: `Successfully deleted Estimate ${id}`,
                             });
                         })
-                        .catch(err => {
-                            res.status(500).json({ error: err.message });
-                            throw new Error(err.message);
-                        });
+                        .catch(err => next(err));
                 }
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-                throw new Error(err.message);
-            });
+            .catch(err => next(err));
     }),
 );
 

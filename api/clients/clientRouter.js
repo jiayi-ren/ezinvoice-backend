@@ -125,21 +125,22 @@ const Clients = require('./clientModel');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res) => {
+router.post('/', authRequired, (req, res, next) => {
     let clientReq = req.body;
     const authUserId = req.user.id;
     clientReq.user_id = authUserId;
 
     if (!clientReq.email) {
-        return res.status(400).json({ error: 'Client email required' });
+        return next(400, 'Client email required');
     }
 
     Clients.findByEmail(clientReq.email)
         .then(client => {
             if (client) {
-                return res.status(409).json({
-                    error: `Client with email ${clientReq.email} already exists`,
-                });
+                return next(
+                    409,
+                    `Client with email ${clientReq.email} already exists`,
+                );
             }
             Clients.create(clientReq)
                 .then(client => {
@@ -149,19 +150,11 @@ router.post('/', authRequired, (req, res) => {
                             client: client[0],
                         });
                     }
-                    res.status(500).json({
-                        error: 'Failed to create a client for the user',
-                    });
+                    next(500, 'Failed to create a client for the user');
                 })
-                .catch(err => {
-                    console.log(err);
-                    res.status(500).json({ error: err.message });
-                });
+                .catch(err => next(err));
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -192,7 +185,7 @@ router.post('/', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.get('/', authRequired, (req, res) => {
+router.get('/', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
 
     Clients.findAllByUserId(authUserId)
@@ -200,14 +193,9 @@ router.get('/', authRequired, (req, res) => {
             if (clients) {
                 return res.status(200).json(clients);
             }
-            res.status(404).json({
-                error: 'Clients not found for current user',
-            });
+            next(404, 'Clients not found for current user');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 /**
@@ -259,26 +247,15 @@ router.put('/:id', authRequired, (req, res) => {
                                     client: updated[0],
                                 });
                             })
-                            .catch(err => {
-                                res.status(500).json({
-                                    message: `Failed to update client ${client.id}`,
-                                    error: err.message,
-                                });
-                            });
+                            .catch(err => next(err));
                     }
-                    return res.status(400).json({
-                        error: 'Client id doest not match with record',
-                    });
+                    return next(400, 'Client id doest not match with record');
                 }
-                res.status(404).json({
-                    error: 'Client not found for current user',
-                });
+                next(404, 'Client not found for current user');
             })
-            .catch(err => {
-                res.status(500).json({ error: err.message });
-            });
+            .catch(err => next(err));
     }
-    res.status(401).json({ error: 'Not authorized to complete this request' });
+    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -317,21 +294,13 @@ router.delete('/:id', authRequired, (req, res) => {
                                 message: 'Successfully deleted the client',
                             });
                         })
-                        .catch(err => {
-                            console.log(err);
-                            res.status(500).json({ error: err.message });
-                        });
+                        .catch(err => next(err));
                 }
-                return res
-                    .status(401)
-                    .json({ error: 'Not authorized to complete this request' });
+                return next(401, 'Not authorized to complete this request');
             }
-            res.status(404).json({ error: 'Client not found' });
+            next(404, 'Client not found');
         })
-        .catch(err => {
-            console.log(err);
-            res.status(500).json({ error: err.message });
-        });
+        .catch(err => next(err));
 });
 
 module.exports = router;

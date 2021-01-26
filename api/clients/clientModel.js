@@ -5,7 +5,7 @@ const findAll = async () => {
 };
 
 const findById = async id => {
-    return await db('clients').where({ id }).first().select('*');
+    return await db('clients').where({ id }).first();
 };
 
 const findByEmail = async email => {

@@ -226,7 +226,7 @@ router.post(
         })
             .then(business => {
                 if (business) {
-                    businessRes = business.id;
+                    businessRes = business;
                 } else {
                     next(500, 'Failed to create a business for the user');
                 }
@@ -236,7 +236,7 @@ router.post(
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
             .then(client => {
                 if (client) {
-                    clientRes = client.id;
+                    clientRes = client;
                 } else {
                     next(500, 'Failed to create a client for the user');
                 }
@@ -260,8 +260,8 @@ router.post(
             title: invoiceReq.title,
             doc_number: docNumberRes,
             user_id: invoiceReq.user_id,
-            business_id: businessRes,
-            client_id: clientRes,
+            business_id: businessRes.id,
+            client_id: clientRes.id,
             date: invoiceReq.date,
             is_paid: false,
         })
@@ -293,6 +293,9 @@ router.post(
                 })
                 .catch(err => next(err));
         }
+
+        invoiceRes.business = businessRes;
+        invoiceRes.client = clientRes;
 
         if (invoiceRes) {
             res.status(201).json({
@@ -358,6 +361,11 @@ router.get(
                     quantity: item.quantity,
                 });
             }
+
+            const business = await Businesses.findById(invoice.business_id);
+            invoice.business = business;
+            const client = await Clients.findById(invoice.client_id);
+            invoice.client = client;
 
             // format date, yyyy-mm-dd
             invoice.date = invoice.date.toISOString().substring(0, 10);

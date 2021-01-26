@@ -226,7 +226,7 @@ router.post(
         })
             .then(business => {
                 if (business) {
-                    businessRes = business.id;
+                    businessRes = business;
                 } else {
                     next(500, 'Failed to create a business for the user');
                 }
@@ -236,7 +236,7 @@ router.post(
         await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
             .then(client => {
                 if (client) {
-                    clientRes = client.id;
+                    clientRes = client;
                 } else {
                     next(500, 'Failed to create a client for the user');
                 }
@@ -260,8 +260,8 @@ router.post(
             title: estimateReq.title,
             doc_number: estimateReq.docNumber,
             user_id: estimateReq.user_id,
-            business_id: businessRes,
-            client_id: clientRes,
+            business_id: businessRes.id,
+            client_id: clientRes.id,
             date: estimateReq.date,
         })
             .then(estimate => {
@@ -292,6 +292,9 @@ router.post(
                 })
                 .catch(err => next(err));
         }
+
+        estimateRes.business = businessRes;
+        estimateRes.client = clientRes;
 
         if (estimateRes) {
             res.status(201).json({
@@ -357,6 +360,11 @@ router.get(
                     quantity: item.quantity,
                 });
             }
+
+            const business = await Businesses.findById(estimate.business_id);
+            estimate.business = business;
+            const client = await Clients.findById(estimate.client_id);
+            estimate.client = client;
 
             // format date, yyyy-mm-dd
             estimate.date = estimate.date.toISOString().substring(0, 10);

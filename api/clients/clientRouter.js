@@ -130,10 +130,6 @@ router.post('/', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
     clientReq.user_id = authUserId;
 
-    if (!clientReq.email) {
-        return next(400, 'Client email required');
-    }
-
     Clients.findByEmail(clientReq.email)
         .then(client => {
             if (client) {

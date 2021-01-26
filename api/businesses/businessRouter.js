@@ -134,10 +134,12 @@ router.post('/', authRequired, (req, res, next) => {
     Businesses.findByEmail(businessReq.email)
         .then(business => {
             if (business) {
-                next(
-                    409,
-                    `Business with email ${businessReq.email} already exists`,
-                    { expose: true },
+                return next(
+                    createError(
+                        409,
+                        `Business with email ${businessReq.email} already exists`,
+                        { expose: true },
+                    ),
                 );
             }
             Businesses.create(businessReq)

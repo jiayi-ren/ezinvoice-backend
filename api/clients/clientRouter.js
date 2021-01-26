@@ -193,7 +193,11 @@ router.get('/', authRequired, (req, res, next) => {
             if (clients) {
                 return res.status(200).json(clients);
             }
-            next(404, 'Clients not found for current user');
+            next(
+                createError(404, 'Clients not found for current user', {
+                    expose: true,
+                }),
+            );
         })
         .catch(err => next(err));
 });
@@ -249,13 +253,21 @@ router.put('/:id', authRequired, (req, res) => {
                             })
                             .catch(err => next(err));
                     }
-                    next(400, 'Client id doest not match with record', {
-                        expose: true,
-                    });
+                    next(
+                        createError(
+                            400,
+                            'Client id doest not match with record',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
-                next(404, 'Client not found for current user', {
-                    expose: true,
-                });
+                next(
+                    createError(404, 'Client not found for current user', {
+                        expose: true,
+                    }),
+                );
             })
             .catch(err => next(err));
     }
@@ -300,11 +312,17 @@ router.delete('/:id', authRequired, (req, res) => {
                         })
                         .catch(err => next(err));
                 }
-                next(401, 'Not authorized to complete this request', {
-                    expose: true,
-                });
+                next(
+                    createError(
+                        401,
+                        'Not authorized to complete this request',
+                        {
+                            expose: true,
+                        },
+                    ),
+                );
             }
-            next(404, 'Client not found', { expose: true });
+            next(createError(404, 'Client not found', { expose: true }));
         })
         .catch(err => next(err));
 });

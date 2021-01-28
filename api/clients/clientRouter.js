@@ -143,12 +143,20 @@ router.post('/', authRequired, (req, res, next) => {
                 );
             }
             Clients.create(clientReq)
-                .then(client => {
+                .then(async client => {
                     if (client) {
-                        return res.status(201).json({
-                            message: 'Successfully create the client',
-                            client: client[0],
-                        });
+                        return await Clients.showClient(client[0].id)
+                            .then(client => {
+                                if (client) {
+                                    return res.status(201).json({
+                                        message:
+                                            'Successfully create the client',
+                                        client: client[0],
+                                    });
+                                }
+                                next(500);
+                            })
+                            .catch(err => next(err));
                     }
                     next(500);
                 })

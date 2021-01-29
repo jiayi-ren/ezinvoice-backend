@@ -3,6 +3,12 @@ const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Clients = require('./clientModel');
+const algoliasearch = require('algoliasearch');
+const client = algoliasearch(
+    process.env.INSTANT_SEARCH_APPLICATION_ID,
+    process.env.INSTANT_SEARCH_ADMIN_API_KEY,
+);
+const index = client.initIndex('clients');
 
 /**
  * @swagger
@@ -142,23 +148,40 @@ router.post('/', authRequired, (req, res, next) => {
                     ),
                 );
             }
-            Clients.create(clientReq)
-                .then(async client => {
-                    if (client) {
-                        return await Clients.showClient(client[0].id)
-                            .then(client => {
-                                if (client) {
-                                    return res.status(201).json({
-                                        message:
-                                            'Successfully create the client',
-                                        client: client[0],
+
+            // add object to InstantSearch
+            index
+                .saveObjects([clientReq], {
+                    autoGenerateObjectIDIfNotExist: true,
+                })
+                .then(async ({ objectIDs }) => {
+                    clientReq.id = objectIDs[0];
+                    await Clients.create(clientReq)
+                        .then(async client => {
+                            if (client) {
+                                return await Clients.showClient(client[0].id)
+                                    .then(async client => {
+                                        if (client) {
+                                            return await res.status(201).json({
+                                                message:
+                                                    'Successfully create the client',
+                                                client: client[0],
+                                            });
+                                        }
+                                        next(500);
+                                    })
+                                    .catch(err => {
+                                        index.deleteObject(clientReq.id);
+                                        next(err);
                                     });
-                                }
-                                next(500);
-                            })
-                            .catch(err => next(err));
-                    }
-                    next(500);
+                            }
+                            index.deleteObject(clientReq.id);
+                            next(500);
+                        })
+                        .catch(err => {
+                            index.deleteObject(clientReq.id);
+                            next(err);
+                        });
                 })
                 .catch(err => next(err));
         })
@@ -242,22 +265,35 @@ router.get('/', authRequired, (req, res, next) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res) => {
+router.put('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const clientReq = req.body;
     const authUserId = req.user.id;
 
     if (authUserId === clientReq.user_id) {
         return Clients.findById(id)
-            .then(client => {
+            .then(async client => {
                 if (client) {
                     if (client.id === id && client.id === clientReq.id) {
-                        return Clients.update(id, clientReq)
-                            .then(updated => {
-                                res.status(200).json({
-                                    message: `Successfully updated client ${client.id}`,
-                                    client: updated[0],
-                                });
+                        return await Clients.update(id, clientReq)
+                            .then(async ([updatedClient]) => {
+                                await index
+                                    .partialUpdateObject({
+                                        objectID: updatedClient.id,
+                                        name: updatedClient.name,
+                                        email: updatedClient.email,
+                                        street: updatedClient.street,
+                                        city_state: updatedClient.city_state,
+                                        zip: updatedClient.zip,
+                                        phone: updatedClient.phone,
+                                    })
+                                    .then(() => {
+                                        res.status(200).json({
+                                            message: `Successfully updated client ${client.id}`,
+                                            client: updatedClient,
+                                        });
+                                    })
+                                    .catch(err => next(err));
                             })
                             .catch(err => next(err));
                     }
@@ -304,19 +340,25 @@ router.put('/:id', authRequired, (req, res) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.delete('/:id', authRequired, (req, res) => {
+router.delete('/:id', authRequired, (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
     Clients.findById(id)
-        .then(client => {
+        .then(async client => {
             if (client) {
                 if (client.user_id === authUserId) {
-                    return Clients.remove(client.id)
-                        .then(() => {
-                            res.status(200).json({
-                                message: 'Successfully deleted the client',
-                            });
+                    return await Clients.remove(client.id)
+                        .then(async () => {
+                            await index
+                                .deleteObject(client.id)
+                                .then(() => {
+                                    res.status(200).json({
+                                        message:
+                                            'Successfully deleted the client',
+                                    });
+                                })
+                                .catch(err => next(err));
                         })
                         .catch(err => next(err));
                 }

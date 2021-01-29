@@ -156,7 +156,7 @@ To get the server running locally:
 
 ```
 {
-  id: BIGINT
+  id: STRING
   name: STRING
   email: STRING
   street: STRING

@@ -40,7 +40,8 @@
     ]
   },
   "dependencies": {
-    "axios": "^0.19.2",
+    "algoliasearch": "^4.8.4",
+    "axios": "^0.21.1",
     "cookie-parser": "^1.4.5",
     "cors": "^2.8.5",
     "debug": "^2.6.9",
@@ -50,7 +51,7 @@
     "express-jwt-authz": "^2.4.1",
     "helmet": "^4.1.1",
     "http-errors": "^1.6.3",
-    "jwks-rsa": "^1.10.1",
+    "jwks-rsa": "^1.12.2",
     "knex": "^0.21.5",
     "morgan": "^1.9.1",
     "pg": "^8.3.3",

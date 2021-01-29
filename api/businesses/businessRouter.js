@@ -3,6 +3,12 @@ const createError = require('http-errors');
 const authRequired = require('../middleware/authRequired');
 const router = express.Router();
 const Businesses = require('./businessModel');
+const algoliasearch = require('algoliasearch');
+const client = algoliasearch(
+    process.env.INSTANT_SEARCH_APPLICATION_ID,
+    process.env.INSTANT_SEARCH_ADMIN_API_KEY,
+);
+const index = client.initIndex('businesses');
 
 /**
  * @swagger
@@ -142,23 +148,41 @@ router.post('/', authRequired, (req, res, next) => {
                     ),
                 );
             }
-            Businesses.create(businessReq)
-                .then(async business => {
-                    if (business) {
-                        return await Businesses.showBusiness(business[0].id)
-                            .then(business => {
-                                if (business) {
-                                    return res.status(200).json({
-                                        message:
-                                            'Successfully create the business',
-                                        business: business[0],
+
+            // add object to InstantSearch
+            index
+                .saveObjects([businessReq], {
+                    autoGenerateObjectIDIfNotExist: true,
+                })
+                .then(async ({ objectIDs }) => {
+                    businessReq.id = objectIDs[0];
+                    await Businesses.create(businessReq)
+                        .then(async business => {
+                            if (business) {
+                                return await Businesses.showBusiness(
+                                    business[0].id,
+                                )
+                                    .then(async business => {
+                                        if (business) {
+                                            return await res.status(201).json({
+                                                message:
+                                                    'Successfully create the business',
+                                                business: business[0],
+                                            });
+                                        }
+                                        next(500);
+                                    })
+                                    .catch(err => {
+                                        index.deleteObject(businessReq.id);
+                                        next(err);
                                     });
-                                }
-                                next(500);
-                            })
-                            .catch(err => next(err));
-                    }
-                    next(500);
+                            }
+                            index.deleteObject(businessReq.id);
+                            next(500);
+                        })
+                        .catch(err => {
+                            next(err);
+                        });
                 })
                 .catch(err => next(err));
         })
@@ -249,19 +273,30 @@ router.put('/:id', authRequired, (req, res, next) => {
 
     if (authUserId === businessReq.user_id) {
         return Businesses.findById(id)
-            .then(business => {
+            .then(async business => {
                 if (business) {
                     if (business.id === id && business.id === businessReq.id) {
-                        return Businesses.update(id, businessReq)
-                            .then(updated => {
-                                res.status(200).json({
-                                    message: `Successfully updated business ${business.id}`,
-                                    business: updated[0],
-                                });
+                        return await Businesses.update(id, businessReq)
+                            .then(async ([updatedBusiness]) => {
+                                await index
+                                    .partialUpdateObject({
+                                        objectID: updatedBusiness.id,
+                                        name: updatedBusiness.name,
+                                        email: updatedBusiness.email,
+                                        street: updatedBusiness.street,
+                                        city_state: updatedBusiness.city_state,
+                                        zip: updatedBusiness.zip,
+                                        phone: updatedBusiness.phone,
+                                    })
+                                    .then(() => {
+                                        res.status(200).json({
+                                            message: `Successfully updated business ${updatedBusiness.id}`,
+                                            business: updatedBusiness,
+                                        });
+                                    })
+                                    .catch(err => next(err));
                             })
-                            .catch(err => {
-                                next(500);
-                            });
+                            .catch(err => next(err));
                     }
                     next(
                         createError(
@@ -313,14 +348,20 @@ router.delete('/:id', authRequired, (req, res, next) => {
     const authUserId = req.user.id;
 
     Businesses.findById(id)
-        .then(business => {
+        .then(async business => {
             if (business) {
                 if (business.user_id === authUserId) {
-                    return Businesses.remove(business.id)
-                        .then(() => {
-                            res.status(200).json({
-                                message: 'Successfully deleted the business',
-                            });
+                    return await Businesses.remove(business.id)
+                        .then(async () => {
+                            await index
+                                .deleteObject(business.id)
+                                .then(() => {
+                                    res.status(200).json({
+                                        message:
+                                            'Successfully deleted the business',
+                                    });
+                                })
+                                .catch(err => next(err));
                         })
                         .catch(err => next(err));
                 }

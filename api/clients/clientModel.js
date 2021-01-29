@@ -44,7 +44,7 @@ const findOrCreateClient = async client => {
 };
 
 const showClient = async id => {
-    return await db('businesses')
+    return await db('clients')
         .where({ id })
         .first()
         .update('is_hidden', false)

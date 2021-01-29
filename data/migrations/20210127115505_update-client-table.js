@@ -5,7 +5,7 @@ exports.up = async function (knex) {
 };
 
 exports.down = async function (knex) {
-    return knex.schema.table('clients', function (table) {
+    return await knex.schema.table('clients', function (table) {
         table.dropColumn('is_hidden');
     });
 };

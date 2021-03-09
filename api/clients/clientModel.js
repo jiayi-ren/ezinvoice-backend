@@ -17,7 +17,9 @@ const findAllByUserId = async user_id => {
 };
 
 const create = async client => {
-    return await db('clients').insert(client).returning('*');
+    const timestamp = Date.now().toString();
+    const clientData = client.id ? client : { ...client, id: `_${timestamp}` };
+    return await db('clients').insert(clientData).returning('*');
 };
 
 const update = async (id, client) => {

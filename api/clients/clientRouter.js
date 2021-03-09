@@ -9,6 +9,7 @@ const client = algoliasearch(
     process.env.INSTANT_SEARCH_ADMIN_API_KEY,
 );
 const index = client.initIndex('clients');
+const knex = require('../../data/db-config');
 
 /**
  * @swagger
@@ -132,60 +133,75 @@ const index = client.initIndex('clients');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res, next) => {
+router.post('/', authRequired, async (req, res, next) => {
     let clientReq = req.body;
     const authUserId = req.user.id;
     clientReq.user_id = authUserId;
 
-    Clients.findByEmail(clientReq.email)
-        .then(client => {
-            if (client) {
-                next(
-                    createError(
-                        409,
-                        `Client with email ${clientReq.email} already exists`,
-                        { expose: true },
-                    ),
-                );
-            }
+    const trx = await knex.transaction();
+    try {
+        Clients.findByEmail(clientReq.email)
+            .then(client => {
+                if (client) {
+                    throw next(
+                        createError(
+                            409,
+                            `Client with email ${clientReq.email} already exists`,
+                            { expose: true },
+                        ),
+                    );
+                }
 
-            // add object to InstantSearch
-            index
-                .saveObjects([clientReq], {
-                    autoGenerateObjectIDIfNotExist: true,
-                })
-                .then(async ({ objectIDs }) => {
-                    clientReq.id = objectIDs[0];
-                    await Clients.create(clientReq)
-                        .then(async client => {
-                            if (client) {
-                                return await Clients.showClient(client[0].id)
-                                    .then(async client => {
-                                        if (client) {
-                                            return await res.status(201).json({
-                                                message:
-                                                    'Successfully create the client',
-                                                client: client[0],
-                                            });
-                                        }
-                                        next(500);
-                                    })
-                                    .catch(err => {
-                                        index.deleteObject(clientReq.id);
-                                        next(err);
-                                    });
-                            }
-                            index.deleteObject(clientReq.id);
-                            next(500);
-                        })
-                        .catch(err => {
-                            index.deleteObject(clientReq.id);
-                            next(err);
-                        });
-                })
-                .catch(err => next(err));
-        })
-        .catch(err => next(err));
+                // add object to InstantSearch
+                index
+                    .saveObjects([clientReq], {
+                        autoGenerateObjectIDIfNotExist: true,
+                    })
+                    .then(async ({ objectIDs }) => {
+                        clientReq.id = objectIDs[0];
+                        await Clients.create(clientReq)
+                            .then(async client => {
+                                if (client) {
+                                    return await Clients.showClient(
+                                        client[0].id,
+                                    )
+                                        .then(async client => {
+                                            if (client) {
+                                                trx.commit();
+                                                return await res
+                                                    .status(201)
+                                                    .json({
+                                                        message:
+                                                            'Successfully create the client',
+                                                        client: client[0],
+                                                    });
+                                            }
+                                            throw next(500);
+                                        })
+                                        .catch(err => {
+                                            index.deleteObject(clientReq.id);
+                                            throw next(err);
+                                        });
+                                }
+                                index.deleteObject(clientReq.id);
+                                throw next(500);
+                            })
+                            .catch(err => {
+                                index.deleteObject(clientReq.id);
+                                throw next(err);
+                            });
+                    })
+                    .catch(err => {
+                        throw next(err);
+                    });
+            })
+            .catch(err => {
+                throw next(err);
+            });
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
+    }
 });
 
 /**
@@ -265,57 +281,71 @@ router.get('/', authRequired, (req, res, next) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res, next) => {
+router.put('/:id', authRequired, async (req, res, next) => {
     const id = req.params.id;
     const clientReq = req.body;
     const authUserId = req.user.id;
 
-    if (authUserId === clientReq.user_id) {
-        return Clients.findById(id)
-            .then(async client => {
-                if (client) {
-                    if (client.id === id && client.id === clientReq.id) {
-                        return await Clients.update(id, clientReq)
-                            .then(async ([updatedClient]) => {
-                                await index
-                                    .partialUpdateObject({
-                                        objectID: updatedClient.id,
-                                        name: updatedClient.name,
-                                        email: updatedClient.email,
-                                        street: updatedClient.street,
-                                        city_state: updatedClient.city_state,
-                                        zip: updatedClient.zip,
-                                        phone: updatedClient.phone,
-                                    })
-                                    .then(() => {
-                                        res.status(200).json({
-                                            message: `Successfully updated client ${client.id}`,
-                                            client: updatedClient,
+    const trx = await knex.transaction();
+    try {
+        if (authUserId === clientReq.user_id) {
+            return Clients.findById(id)
+                .then(async client => {
+                    if (client) {
+                        if (client.id === id && client.id === clientReq.id) {
+                            return await Clients.update(id, clientReq)
+                                .then(async ([updatedClient]) => {
+                                    await index
+                                        .partialUpdateObject({
+                                            objectID: updatedClient.id,
+                                            name: updatedClient.name,
+                                            email: updatedClient.email,
+                                            street: updatedClient.street,
+                                            city_state:
+                                                updatedClient.city_state,
+                                            zip: updatedClient.zip,
+                                            phone: updatedClient.phone,
+                                        })
+                                        .then(() => {
+                                            trx.commit();
+                                            return res.status(200).json({
+                                                message: `Successfully updated client ${client.id}`,
+                                                client: updatedClient,
+                                            });
+                                        })
+                                        .catch(err => {
+                                            throw next(err);
                                         });
-                                    })
-                                    .catch(err => next(err));
-                            })
-                            .catch(err => next(err));
+                                })
+                                .catch(err => {
+                                    throw next(err);
+                                });
+                        }
+                        throw next(
+                            createError(
+                                400,
+                                'Client id doest not match with record',
+                                {
+                                    expose: true,
+                                },
+                            ),
+                        );
                     }
-                    next(
-                        createError(
-                            400,
-                            'Client id doest not match with record',
-                            {
-                                expose: true,
-                            },
-                        ),
+                    throw next(
+                        createError(404, 'Client not found for current user', {
+                            expose: true,
+                        }),
                     );
-                }
-                next(
-                    createError(404, 'Client not found for current user', {
-                        expose: true,
-                    }),
-                );
-            })
-            .catch(err => next(err));
+                })
+                .catch(err => {
+                    throw next(err);
+                });
+        }
+        throw next(401, 'Not authorized to complete this request');
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
     }
-    next(401, 'Not authorized to complete this request');
 });
 
 /**
@@ -340,41 +370,56 @@ router.put('/:id', authRequired, (req, res, next) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.delete('/:id', authRequired, (req, res, next) => {
+router.delete('/:id', authRequired, async (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
-    Clients.findById(id)
-        .then(async client => {
-            if (client) {
-                if (client.user_id === authUserId) {
-                    return await Clients.remove(client.id)
-                        .then(async () => {
-                            await index
-                                .deleteObject(client.id)
-                                .then(() => {
-                                    res.status(200).json({
-                                        message:
-                                            'Successfully deleted the client',
+    const trx = await knex.transaction();
+    try {
+        Clients.findById(id)
+            .then(async client => {
+                if (client) {
+                    if (client.user_id === authUserId) {
+                        return await Clients.remove(client.id)
+                            .then(async () => {
+                                await index
+                                    .deleteObject(client.id)
+                                    .then(() => {
+                                        trx.commit();
+                                        return res.status(200).json({
+                                            message:
+                                                'Successfully deleted the client',
+                                        });
+                                    })
+                                    .catch(err => {
+                                        throw next(err);
                                     });
-                                })
-                                .catch(err => next(err));
-                        })
-                        .catch(err => next(err));
+                            })
+                            .catch(err => {
+                                throw next(err);
+                            });
+                    }
+                    throw next(
+                        createError(
+                            401,
+                            'Not authorized to complete this request',
+                            {
+                                expose: true,
+                            },
+                        ),
+                    );
                 }
-                next(
-                    createError(
-                        401,
-                        'Not authorized to complete this request',
-                        {
-                            expose: true,
-                        },
-                    ),
+                throw next(
+                    createError(404, 'Client not found', { expose: true }),
                 );
-            }
-            next(createError(404, 'Client not found', { expose: true }));
-        })
-        .catch(err => next(err));
+            })
+            .catch(err => {
+                throw next(err);
+            });
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
+    }
 });
 
 module.exports = router;

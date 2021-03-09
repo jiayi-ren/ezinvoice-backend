@@ -9,6 +9,7 @@ const client = algoliasearch(
     process.env.INSTANT_SEARCH_ADMIN_API_KEY,
 );
 const index = client.initIndex('businesses');
+const knex = require('../../data/db-config');
 
 /**
  * @swagger
@@ -132,61 +133,74 @@ const index = client.initIndex('businesses');
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.post('/', authRequired, (req, res, next) => {
+router.post('/', authRequired, async (req, res, next) => {
     let businessReq = req.body;
     const authUserId = req.user.id;
     businessReq.user_id = authUserId;
 
-    Businesses.findByEmail(businessReq.email)
-        .then(business => {
-            if (business) {
-                return next(
-                    createError(
-                        409,
-                        `Business with email ${businessReq.email} already exists`,
-                        { expose: true },
-                    ),
-                );
-            }
+    const trx = await knex.transaction();
+    try {
+        Businesses.findByEmail(businessReq.email)
+            .then(business => {
+                if (business) {
+                    throw next(
+                        createError(
+                            409,
+                            `Business with email ${businessReq.email} already exists`,
+                            { expose: true },
+                        ),
+                    );
+                }
 
-            // add object to InstantSearch
-            index
-                .saveObjects([businessReq], {
-                    autoGenerateObjectIDIfNotExist: true,
-                })
-                .then(async ({ objectIDs }) => {
-                    businessReq.id = objectIDs[0];
-                    await Businesses.create(businessReq)
-                        .then(async business => {
-                            if (business) {
-                                return await Businesses.showBusiness(
-                                    business[0].id,
-                                )
-                                    .then(async business => {
-                                        if (business) {
-                                            return await res.status(201).json({
-                                                message:
-                                                    'Successfully create the business',
-                                                business: business[0],
-                                            });
-                                        }
-                                        next(500);
-                                    })
-                                    .catch(err => {
-                                        index.deleteObject(businessReq.id);
-                                        next(err);
-                                    });
-                            }
-                            index.deleteObject(businessReq.id);
-                            next(500);
-                        })
-                        .catch(err => {
-                            next(err);
-                        });
-                })
-                .catch(err => next(err));
-        })
-        .catch(err => next(err));
+                // add object to InstantSearch
+                index
+                    .saveObjects([businessReq], {
+                        autoGenerateObjectIDIfNotExist: true,
+                    })
+                    .then(async ({ objectIDs }) => {
+                        businessReq.id = objectIDs[0];
+                        await Businesses.create(businessReq)
+                            .then(async business => {
+                                if (business) {
+                                    return await Businesses.showBusiness(
+                                        business[0].id,
+                                    )
+                                        .then(async business => {
+                                            if (business) {
+                                                trx.commit();
+                                                return await res
+                                                    .status(201)
+                                                    .json({
+                                                        message:
+                                                            'Successfully create the business',
+                                                        business: business[0],
+                                                    });
+                                            }
+                                            throw next(500);
+                                        })
+                                        .catch(err => {
+                                            index.deleteObject(businessReq.id);
+                                            next(err);
+                                        });
+                                }
+                                index.deleteObject(businessReq.id);
+                                throw next(500);
+                            })
+                            .catch(err => {
+                                throw next(err);
+                            });
+                    })
+                    .catch(err => {
+                        throw next(err);
+                    });
+            })
+            .catch(err => {
+                throw next(err);
+            });
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
+    }
 });
 
 /**
@@ -266,59 +280,80 @@ router.get('/', authRequired, (req, res, next) => {
  *        description: 'Internal Server Error'
  */
 
-router.put('/:id', authRequired, (req, res, next) => {
+router.put('/:id', authRequired, async (req, res, next) => {
     const id = req.params.id;
     const businessReq = req.body;
     const authUserId = req.user.id;
 
-    if (authUserId === businessReq.user_id) {
-        return Businesses.findById(id)
-            .then(async business => {
-                if (business) {
-                    if (business.id === id && business.id === businessReq.id) {
-                        return await Businesses.update(id, businessReq)
-                            .then(async ([updatedBusiness]) => {
-                                await index
-                                    .partialUpdateObject({
-                                        objectID: updatedBusiness.id,
-                                        name: updatedBusiness.name,
-                                        email: updatedBusiness.email,
-                                        street: updatedBusiness.street,
-                                        city_state: updatedBusiness.city_state,
-                                        zip: updatedBusiness.zip,
-                                        phone: updatedBusiness.phone,
-                                    })
-                                    .then(() => {
-                                        res.status(200).json({
-                                            message: `Successfully updated business ${updatedBusiness.id}`,
-                                            business: updatedBusiness,
+    const trx = await knex.transaction();
+    try {
+        if (authUserId === businessReq.user_id) {
+            return Businesses.findById(id)
+                .then(async business => {
+                    if (business) {
+                        if (
+                            business.id === id &&
+                            business.id === businessReq.id
+                        ) {
+                            return await Businesses.update(id, businessReq)
+                                .then(async ([updatedBusiness]) => {
+                                    await index
+                                        .partialUpdateObject({
+                                            objectID: updatedBusiness.id,
+                                            name: updatedBusiness.name,
+                                            email: updatedBusiness.email,
+                                            street: updatedBusiness.street,
+                                            city_state:
+                                                updatedBusiness.city_state,
+                                            zip: updatedBusiness.zip,
+                                            phone: updatedBusiness.phone,
+                                        })
+                                        .then(() => {
+                                            trx.commit();
+                                            return res.status(200).json({
+                                                message: `Successfully updated business ${updatedBusiness.id}`,
+                                                business: updatedBusiness,
+                                            });
+                                        })
+                                        .catch(err => {
+                                            throw next(err);
                                         });
-                                    })
-                                    .catch(err => next(err));
-                            })
-                            .catch(err => next(err));
+                                })
+                                .catch(err => {
+                                    throw next(err);
+                                });
+                        }
+                        throw next(
+                            createError(
+                                400,
+                                'Business id doest not match with record',
+                                { expose: true },
+                            ),
+                        );
                     }
-                    next(
+                    throw next(
                         createError(
-                            400,
-                            'Business id doest not match with record',
-                            { expose: true },
+                            404,
+                            'Business not found for current user',
+                            {
+                                expose: true,
+                            },
                         ),
                     );
-                }
-                next(
-                    createError(404, 'Business not found for current user', {
-                        expose: true,
-                    }),
-                );
-            })
-            .catch(err => next(err));
+                })
+                .catch(err => {
+                    throw next(err);
+                });
+        }
+        throw next(
+            createError(401, 'Not authorized to complete this request', {
+                expose: true,
+            }),
+        );
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
     }
-    next(
-        createError(401, 'Not authorized to complete this request', {
-            expose: true,
-        }),
-    );
 });
 
 /**
@@ -343,36 +378,54 @@ router.put('/:id', authRequired, (req, res, next) => {
  *        $ref: '#/components/responses/InternalServerError'
  */
 
-router.delete('/:id', authRequired, (req, res, next) => {
+router.delete('/:id', authRequired, async (req, res, next) => {
     const id = req.params.id;
     const authUserId = req.user.id;
 
-    Businesses.findById(id)
-        .then(async business => {
-            if (business) {
-                if (business.user_id === authUserId) {
-                    return await Businesses.remove(business.id)
-                        .then(async () => {
-                            await index
-                                .deleteObject(business.id)
-                                .then(() => {
-                                    res.status(200).json({
-                                        message:
-                                            'Successfully deleted the business',
+    const trx = await knex.transaction();
+    try {
+        Businesses.findById(id)
+            .then(async business => {
+                if (business) {
+                    if (business.user_id === authUserId) {
+                        return await Businesses.remove(business.id)
+                            .then(async () => {
+                                await index
+                                    .deleteObject(business.id)
+                                    .then(() => {
+                                        trx.commit();
+                                        return res.status(200).json({
+                                            message:
+                                                'Successfully deleted the business',
+                                        });
+                                    })
+                                    .catch(err => {
+                                        throw next(err);
                                     });
-                                })
-                                .catch(err => next(err));
-                        })
-                        .catch(err => next(err));
+                            })
+                            .catch(err => {
+                                throw next(err);
+                            });
+                    }
+                    throw next(
+                        createError(
+                            401,
+                            'Not authorized to complete this request',
+                        ),
+                        { expose: true },
+                    );
                 }
-                next(
-                    createError(401, 'Not authorized to complete this request'),
-                    { expose: true },
+                throw next(
+                    createError(404, 'Business not found', { expose: true }),
                 );
-            }
-            next(createError(404, 'Business not found', { expose: true }));
-        })
-        .catch(err => next(err));
+            })
+            .catch(err => {
+                throw next(err);
+            });
+    } catch (err) {
+        trx.rollback();
+        throw next(err);
+    }
 });
 
 module.exports = router;

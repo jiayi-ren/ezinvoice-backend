@@ -17,7 +17,11 @@ const findAllByUserId = async user_id => {
 };
 
 const create = async business => {
-    return await db('businesses').insert(business).returning('*');
+    const timestamp = Date.now().toString();
+    const businessData = business.id
+        ? business
+        : { ...business, id: `_${timestamp}` };
+    return await db('businesses').insert(businessData).returning('*');
 };
 
 const update = async (id, business) => {

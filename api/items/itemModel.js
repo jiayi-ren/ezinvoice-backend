@@ -20,7 +20,9 @@ const findAllByUserId = async user_id => {
 };
 
 const create = async item => {
-    return await db('items').insert(item).returning('*');
+    const timestamp = Date.now().toString();
+    const itemData = item.id ? item : { ...item, id: `_${timestamp}` };
+    return await db('items').insert(itemData).returning('*');
 };
 
 const update = async (id, item) => {
@@ -44,6 +46,14 @@ const findOrCreateItem = async item => {
     }
 };
 
+const showItem = async id => {
+    return await db('items')
+        .where({ id })
+        .first()
+        .update('is_hidden', false)
+        .returning('*');
+};
+
 module.exports = {
     findAll,
     findById,
@@ -53,4 +63,5 @@ module.exports = {
     update,
     remove,
     findOrCreateItem,
+    showItem,
 };

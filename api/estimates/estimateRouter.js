@@ -9,6 +9,7 @@ const Businesses = require('../businesses/businessModel');
 const Clients = require('../clients/clientModel');
 const Users = require('../user/userModel');
 const EstimateItems = require('../estimateItems/estimateItemsModel');
+const knex = require('../../data/db-config');
 
 /**
  * @swagger
@@ -202,140 +203,164 @@ router.post(
         let businessRes, clientRes;
         let estimateRes = {};
 
-        if (itemsReq.length > 0) {
-            for (const itemReq of itemsReq) {
-                const { quantity, ...item } = itemReq;
-                item.user_id = authUserId;
-                await Items.findOrCreateItem(item)
-                    .then(item => {
-                        if (item) {
-                            itemsRes.push({
-                                ...item,
-                                quantity: itemReq.quantity,
-                            });
-                        } else {
-                            next(
-                                createError(
-                                    500,
-                                    'Failed to create an item for the user',
-                                    {
-                                        expose: true,
-                                    },
-                                ),
-                            );
-                        }
-                    })
-                    .catch(err => next(err));
+        const trx = await knex.transaction();
+        try {
+            if (itemsReq.length > 0) {
+                for (const itemReq of itemsReq) {
+                    const { quantity, ...item } = itemReq;
+                    item.user_id = authUserId;
+                    await Items.findOrCreateItem(item)
+                        .then(item => {
+                            if (item) {
+                                itemsRes.push({
+                                    ...item,
+                                    quantity: itemReq.quantity,
+                                });
+                            } else {
+                                throw next(
+                                    createError(
+                                        500,
+                                        'Failed to create an item for the user',
+                                        {
+                                            expose: true,
+                                        },
+                                    ),
+                                );
+                            }
+                        })
+                        .catch(err => {
+                            throw next(err);
+                        });
+                }
             }
-        }
 
-        await Businesses.findOrCreateBusiness({
-            ...businessReq,
-            user_id: authUserId,
-        })
-            .then(business => {
-                if (business) {
-                    businessRes = business;
-                } else {
-                    next(
-                        createError(
-                            500,
-                            'Failed to create a business for the user',
-                            {
-                                expose: true,
-                            },
-                        ),
-                    );
-                }
+            await Businesses.findOrCreateBusiness({
+                ...businessReq,
+                user_id: authUserId,
             })
-            .catch(err => next(err));
-
-        await Clients.findOrCreateClient({ ...clientReq, user_id: authUserId })
-            .then(client => {
-                if (client) {
-                    clientRes = client;
-                } else {
-                    next(
-                        createError(
-                            500,
-                            'Failed to create a client for the user',
-                            {
-                                expose: true,
-                            },
-                        ),
-                    );
-                }
-            })
-            .catch(err => next(err));
-
-        await Users.findDocNumberById(authUserId)
-            .then(async docNumber => {
-                await Users.updateDocNumber(
-                    authUserId,
-                    parseInt(docNumber['doc_number']) + 1,
-                )
-                    .then(docNumber => {
-                        docNumberRes = docNumber[0];
-                    })
-                    .catch(err => next(err));
-            })
-            .catch(err => next(err));
-
-        await Estimates.create({
-            title: estimateReq.title,
-            doc_number: estimateReq.docNumber,
-            user_id: estimateReq.user_id,
-            business_id: businessRes.id,
-            client_id: clientRes.id,
-            date: estimateReq.date,
-        })
-            .then(estimate => {
-                if (estimate) {
-                    Object.assign(estimateRes, estimate[0]);
-                    estimateRes.items = [];
-                } else {
-                    next(
-                        createError(
-                            500,
-                            'Failed to create an estimate for the user',
-                            {
-                                expose: true,
-                            },
-                        ),
-                    );
-                }
-            })
-            .catch(err => next(err));
-
-        for (const item of itemsRes) {
-            await EstimateItems.create({
-                estimate_id: estimateRes.id,
-                item_id: item.id,
-                quantity: item.quantity,
-            })
-                .then(estimateItem => {
-                    if (estimateItem) {
-                        estimateRes.items.push(item);
+                .then(business => {
+                    if (business) {
+                        businessRes = business;
                     } else {
-                        next(
+                        throw next(
                             createError(
                                 500,
-                                `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
-                                { expose: true },
+                                'Failed to create a business for the user',
+                                {
+                                    expose: true,
+                                },
                             ),
                         );
                     }
                 })
-                .catch(err => next(err));
-        }
+                .catch(err => {
+                    throw next(err);
+                });
 
-        estimateRes.business = businessRes;
-        estimateRes.client = clientRes;
+            await Clients.findOrCreateClient({
+                ...clientReq,
+                user_id: authUserId,
+            })
+                .then(client => {
+                    if (client) {
+                        clientRes = client;
+                    } else {
+                        throw next(
+                            createError(
+                                500,
+                                'Failed to create a client for the user',
+                                {
+                                    expose: true,
+                                },
+                            ),
+                        );
+                    }
+                })
+                .catch(err => {
+                    throw next(err);
+                });
 
-        if (estimateRes) {
-            res.status(201).json({
-                estimate: estimateRes,
-            });
+            await Users.findDocNumberById(authUserId)
+                .then(async docNumber => {
+                    await Users.updateDocNumber(
+                        authUserId,
+                        parseInt(docNumber['doc_number']) + 1,
+                    )
+                        .then(docNumber => {
+                            docNumberRes = docNumber[0];
+                        })
+                        .catch(err => {
+                            throw next(err);
+                        });
+                })
+                .catch(err => {
+                    throw next(err);
+                });
+
+            await Estimates.create({
+                title: estimateReq.title,
+                doc_number: estimateReq.docNumber,
+                user_id: estimateReq.user_id,
+                business_id: businessRes.id,
+                client_id: clientRes.id,
+                date: estimateReq.date,
+            })
+                .then(estimate => {
+                    if (estimate) {
+                        Object.assign(estimateRes, estimate[0]);
+                        estimateRes.items = [];
+                    } else {
+                        throw next(
+                            createError(
+                                500,
+                                'Failed to create an estimate for the user',
+                                {
+                                    expose: true,
+                                },
+                            ),
+                        );
+                    }
+                })
+                .catch(err => {
+                    throw next(err);
+                });
+
+            for (const item of itemsRes) {
+                await EstimateItems.create({
+                    estimate_id: estimateRes.id,
+                    item_id: item.id,
+                    quantity: item.quantity,
+                })
+                    .then(estimateItem => {
+                        if (estimateItem) {
+                            estimateRes.items.push(item);
+                        } else {
+                            throw next(
+                                createError(
+                                    500,
+                                    `Failed to create a relationship between estimate ${estimateRes.id} and item ${item.id} for the user`,
+                                    { expose: true },
+                                ),
+                            );
+                        }
+                    })
+                    .catch(err => {
+                        throw next(err);
+                    });
+            }
+
+            estimateRes.business = businessRes;
+            estimateRes.client = clientRes;
+
+            if (estimateRes) {
+                trx.commit();
+                res.status(201).json({
+                    estimate: estimateRes,
+                });
+            }
+        } catch (err) {
+            await trx.rollback();
+            throw err;
         }
     }),
 );
@@ -463,151 +488,190 @@ router.put(
         const authUserId = req.user.id;
         let estimateRes = { items: [] };
 
-        if (estimateReq.id !== id) {
-            next(
-                createError(
-                    400,
-                    'Estimate id doest not match with parameter id',
-                    {
-                        expose: true,
-                    },
-                ),
-            );
-        }
-
-        await Estimates.findById(id)
-            .then(async estimate => {
-                if (!estimate) {
-                    next(
-                        createError(404, `Estimate ${id} not found`, {
+        const trx = await knex.transaction();
+        try {
+            if (estimateReq.id !== id) {
+                throw next(
+                    createError(
+                        400,
+                        'Estimate id doest not match with parameter id',
+                        {
                             expose: true,
-                        }),
-                    );
-                } else if (estimate.user_id !== authUserId) {
-                    next(
-                        createError(
-                            401,
-                            `Not Authorized to make changes to Estimate ${estimate.id}`,
-                            { expose: true },
-                        ),
-                    );
-                } else if (
-                    estimate.id === id &&
-                    estimate.user_id === authUserId
-                ) {
-                    for (const itemReq of items) {
-                        if (itemReq.id) {
-                            await Items.findById(itemReq.id)
-                                .then(async item => {
-                                    if (item) {
+                        },
+                    ),
+                );
+            }
+
+            await Estimates.findById(id)
+                .then(async estimate => {
+                    if (!estimate) {
+                        throw next(
+                            createError(404, `Estimate ${id} not found`, {
+                                expose: true,
+                            }),
+                        );
+                    } else if (estimate.user_id !== authUserId) {
+                        throw next(
+                            createError(
+                                401,
+                                `Not Authorized to make changes to Estimate ${estimate.id}`,
+                                { expose: true },
+                            ),
+                        );
+                    } else if (
+                        estimate.id === id &&
+                        estimate.user_id === authUserId
+                    ) {
+                        for (const itemReq of items) {
+                            if (itemReq.id) {
+                                await Items.findById(itemReq.id)
+                                    .then(async item => {
+                                        if (item) {
+                                            const {
+                                                quantity,
+                                                createdAt,
+                                                updatedAt,
+                                                ...updateItem
+                                            } = itemReq;
+                                            await Items.update(
+                                                item.id,
+                                                updateItem,
+                                            )
+                                                .then(async item => {
+                                                    estimateRes.items.push(
+                                                        item[0],
+                                                    );
+                                                })
+                                                .catch(err => {
+                                                    throw next(err);
+                                                });
+                                        } else {
+                                            throw next(
+                                                createError(
+                                                    404,
+                                                    'Item id not found',
+                                                    {
+                                                        expose: true,
+                                                    },
+                                                ),
+                                            );
+                                        }
+                                    })
+                                    .catch(err => {
+                                        throw next(err);
+                                    });
+                            } else {
+                                const { quantity, ...newItem } = itemReq;
+                                await Items.create({
+                                    ...newItem,
+                                    user_id: authUserId,
+                                })
+                                    .then(async item => {
+                                        estimateRes.items.push(item[0]);
+                                    })
+                                    .catch(err => {
+                                        throw next(err);
+                                    });
+                            }
+                        }
+
+                        for (let i = 0; i < estimateRes.items.length; i++) {
+                            await EstimateItems.findByItemId(
+                                estimateRes.items[i].id,
+                            )
+                                .then(async estimateItem => {
+                                    if (estimateItem) {
                                         const {
                                             quantity,
-                                            createdAt,
-                                            updatedAt,
                                             ...updateItem
-                                        } = itemReq;
-                                        await Items.update(item.id, updateItem)
-                                            .then(async item => {
-                                                estimateRes.items.push(item[0]);
+                                        } = items[i];
+                                        await EstimateItems.update(
+                                            estimateItem.estimate_id,
+                                            estimateItem.item_id,
+                                            {
+                                                quantity: quantity,
+                                            },
+                                        )
+                                            .then(estimateItem => {
+                                                estimateRes.items[i] = {
+                                                    ...estimateRes.items[i],
+                                                    quantity:
+                                                        estimateItem[0]
+                                                            .quantity,
+                                                };
                                             })
-                                            .catch(err => next(err));
+                                            .catch(err => {
+                                                throw next(err);
+                                            });
                                     } else {
-                                        next(
-                                            createError(
-                                                404,
-                                                'Item id not found',
-                                                {
-                                                    expose: true,
-                                                },
-                                            ),
-                                        );
+                                        const {
+                                            quantity,
+                                            ...updateItem
+                                        } = items[i];
+                                        await EstimateItems.create({
+                                            estimate_id: estimateReq.id,
+                                            item_id: estimateRes.items[i].id,
+                                            quantity: quantity,
+                                        })
+                                            .then(estimateItem => {
+                                                estimateRes.items[i] = {
+                                                    ...estimateRes.items[i],
+                                                    quantity:
+                                                        estimateItem[0]
+                                                            .quantity,
+                                                };
+                                            })
+                                            .catch(err => {
+                                                throw next(err);
+                                            });
                                     }
                                 })
-                                .catch(err => next(err));
-                        } else {
-                            const { quantity, ...newItem } = itemReq;
-                            await Items.create({
-                                ...newItem,
-                                user_id: authUserId,
-                            })
-                                .then(async item => {
-                                    estimateRes.items.push(item[0]);
-                                })
-                                .catch(err => next(err));
+                                .catch(err => {
+                                    throw next(err);
+                                });
                         }
-                    }
 
-                    for (let i = 0; i < estimateRes.items.length; i++) {
-                        await EstimateItems.findByItemId(
-                            estimateRes.items[i].id,
+                        await Businesses.update(
+                            estimateReq.business_id,
+                            business,
                         )
-                            .then(async estimateItem => {
-                                if (estimateItem) {
-                                    const { quantity, ...updateItem } = items[
-                                        i
-                                    ];
-                                    await EstimateItems.update(
-                                        estimateItem.estimate_id,
-                                        estimateItem.item_id,
-                                        {
-                                            quantity: quantity,
-                                        },
-                                    )
-                                        .then(estimateItem => {
-                                            estimateRes.items[i] = {
-                                                ...estimateRes.items[i],
-                                                quantity:
-                                                    estimateItem[0].quantity,
-                                            };
-                                        })
-                                        .catch(err => next(err));
-                                } else {
-                                    const { quantity, ...updateItem } = items[
-                                        i
-                                    ];
-                                    await EstimateItems.create({
-                                        estimate_id: estimateReq.id,
-                                        item_id: estimateRes.items[i].id,
-                                        quantity: quantity,
-                                    })
-                                        .then(estimateItem => {
-                                            estimateRes.items[i] = {
-                                                ...estimateRes.items[i],
-                                                quantity:
-                                                    estimateItem[0].quantity,
-                                            };
-                                        })
-                                        .catch(err => next(err));
-                                }
+                            .then(business => {
+                                estimateRes.business = business;
                             })
-                            .catch(err => next(err));
+                            .catch(err => {
+                                throw next(err);
+                            });
+
+                        await Clients.update(estimateReq.client_id, client)
+                            .then(client => {
+                                estimateRes.client = client;
+                            })
+                            .catch(err => {
+                                throw next(err);
+                            });
+
+                        await Estimates.update(id, estimateReq)
+                            .then(estimate => {
+                                Object.assign(estimateRes, estimate[0]);
+                            })
+                            .catch(err => {
+                                throw next(err);
+                            });
                     }
+                })
+                .catch(err => {
+                    throw next(err);
+                });
 
-                    await Businesses.update(estimateReq.business_id, business)
-                        .then(business => {
-                            estimateRes.business = business;
-                        })
-                        .catch(err => next(err));
-
-                    await Clients.update(estimateReq.client_id, client)
-                        .then(client => {
-                            estimateRes.client = client;
-                        })
-                        .catch(err => next(err));
-
-                    await Estimates.update(id, estimateReq)
-                        .then(estimate => {
-                            Object.assign(estimateRes, estimate[0]);
-                        })
-                        .catch(err => next(err));
-                }
-            })
-            .catch(err => next(err));
-
-        res.status(200).json({
-            message: `Successfully updated estimate ${estimateRes.id}`,
-            estimate: estimateRes,
-        });
+            trx.commit();
+            res.status(200).json({
+                message: `Successfully updated estimate ${estimateRes.id}`,
+                estimate: estimateRes,
+            });
+        } catch (err) {
+            await trx.rollback();
+            throw err;
+        }
     }),
 );
 
@@ -640,33 +704,58 @@ router.delete(
         const id = req.params.id;
         const authUserId = req.user.id;
 
-        await Estimates.findById(id)
-            .then(async estimate => {
-                if (!estimate) {
-                    next(
-                        createError(404, `Estimate ${id} not found`, {
-                            expose: true,
-                        }),
-                    );
-                } else if (estimate.user_id !== authUserId) {
-                    next(
-                        createError(
-                            401,
-                            `Not authorized to make changes to Estimate ${id}`,
-                            { expose: true },
-                        ),
-                    );
-                } else if (estimate.user_id === authUserId) {
-                    await Estimates.remove(id)
-                        .then(() => {
-                            res.status(200).json({
-                                message: `Successfully deleted Estimate ${id}`,
+        const trx = await knex.transaction();
+        try {
+            await Estimates.findById(id)
+                .then(async estimate => {
+                    if (!estimate) {
+                        throw next(
+                            createError(404, `Estimate ${id} not found`, {
+                                expose: true,
+                            }),
+                        );
+                    } else if (estimate.user_id !== authUserId) {
+                        throw next(
+                            createError(
+                                401,
+                                `Not authorized to make changes to Estimate ${id}`,
+                                { expose: true },
+                            ),
+                        );
+                    } else if (estimate.user_id === authUserId) {
+                        await Estimates.remove(id)
+                            .then(async () => {
+                                await Users.findDocNumberById(authUserId).then(
+                                    async docNumber => {
+                                        await Users.updateDocNumber(
+                                            authUserId,
+                                            parseInt(docNumber['doc_number']) -
+                                                1,
+                                        )
+                                            .then(() => {
+                                                trx.commit();
+                                                return res.status(200).json({
+                                                    message: `Successfully deleted Estimate ${id}`,
+                                                });
+                                            })
+                                            .catch(err => {
+                                                throw next(err);
+                                            });
+                                    },
+                                );
+                            })
+                            .catch(err => {
+                                throw next(err);
                             });
-                        })
-                        .catch(err => next(err));
-                }
-            })
-            .catch(err => next(err));
+                    }
+                })
+                .catch(err => {
+                    throw next(err);
+                });
+        } catch (err) {
+            await trx.rollback();
+            throw err;
+        }
     }),
 );
 
